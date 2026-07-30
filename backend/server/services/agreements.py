@@ -1,0 +1,268 @@
+"""약정 체결 — 계약 항목 스키마 해석, PDF 생성, 서명 요청 발송.
+
+개인용 웹과의 접점이다. 흐름은 이렇다.
+
+    개인용: 사업 목록 조회 → 계약 항목 스키마 조회 → 챗봇으로 값 수집
+    기업용: 값 받기 → PDF 생성 → 모두싸인 서명 요청 → 기부자 메일로 발송
+
+발송된 문서는 모두싸인에 남으므로 W1·W2·W4 화면에는 자동으로 나타난다.
+여기서 로컬에 남기는 기록은 상태 조회와 사업 연결을 위한 것이다.
+"""
+
+from __future__ import annotations
+
+import calendar
+from datetime import date, datetime
+
+from .. import store
+from ..clients.modusign import METADATA_LIMIT, ModusignError
+from ..clients.modusign import client as modusign
+from .contract import SIGN_ANCHOR, build_agreement_pdf
+from .programs import get as get_program
+
+# 기부자가 직접 채우는 항목만 챗봇이 물어본다.
+DONOR_ROLE = "기부자"
+
+# 모두싸인 metadatas로 넘길 키. 이 값들이 있어야 기업용 대시보드 집계가 맞는다.
+# 최대 10개라 새 키를 넣으려면 기존 키를 빼야 한다.
+METADATA_KEYS = [
+    "donation_type", "amount", "frequency", "term_months",
+    "program_id", "program_name", "start_date", "end_date",
+    "receipt_required", "motivation",
+]
+
+# 챗봇이 모은 값에서 metadatas 키를 유추할 때 쓰는 별칭.
+# 서식마다 항목 이름이 달라서 그대로는 못 맞춘다.
+_ALIASES = {
+    "amount": ["amount", "회차_금액", "기부_금액", "금액", "기부금액"],
+    "frequency": ["frequency", "납부_주기", "주기", "납부주기"],
+    "term_months": ["term_months", "약정_기간", "기간", "약정기간"],
+    "donation_type": ["donation_type", "기부_방식", "기부_유형", "방식"],
+    "motivation": ["motivation", "기부_동기", "동기"],
+    "receipt_required": ["receipt_required", "기부금영수증_발급", "영수증"],
+}
+
+
+# ── 계약 항목 스키마 ────────────────────────────────────────
+def contract_form(program_id: str) -> dict:
+    """사업에 연결된 계약서의 입력 항목을 돌려준다.
+
+    개인용 웹 챗봇이 이걸 체크리스트로 삼는다. 기관이 서식을 바꾸면
+    여기 결과가 바뀌고 챗봇 질문도 저절로 따라간다.
+    """
+    program = get_program(program_id)
+    if not program:
+        raise ValueError(f"모금 사업을 찾을 수 없습니다: {program_id}")
+
+    fields = _resolve_fields(program)
+    donor_fields = [f for f in fields if f.get("assignee", DONOR_ROLE) == DONOR_ROLE
+                    and f.get("type") != "sign"]
+
+    return {
+        "program_id": program_id,
+        "program_name": program.get("name"),
+        "ready": bool(donor_fields),
+        "schema_version": _schema_version(fields),
+        "fields": [
+            {
+                "key": f.get("key"),
+                "label": f.get("label"),
+                "type": f.get("type", "text"),
+                "required": f.get("type") != "check",
+                "options": _options(f, program),
+            }
+            for f in donor_fields
+        ],
+        "note": "" if donor_fields else
+                "이 사업에 연결된 계약서 서식이 아직 없습니다. 기관이 서식을 등록해야 합니다.",
+    }
+
+
+def _resolve_fields(program: dict) -> list[dict]:
+    """사업 → 템플릿 → 항목 목록. 여러 곳에 흩어져 있어 순서대로 찾는다."""
+    template_id = program.get("template_id")
+
+    # 1) W6에서 저장하며 연결한 템플릿
+    for row in store.read_list("templates"):
+        if template_id and row.get("template_id") == template_id:
+            return row.get("fields") or []
+        if row.get("id") == template_id:
+            return row.get("fields") or []
+
+    # 2) W5 추출 결과에 붙어 있는 경우
+    for row in store.read_list("form_extractions"):
+        if row.get("template_id") == template_id:
+            return row.get("fields") or []
+
+    # 3) 데모 템플릿(모두싸인 미연동 상태)
+    from ..clients.mock_data import TEMPLATES
+    for t in TEMPLATES:
+        if t["id"] == template_id:
+            return [{**f, "key": f["key"]} for f in t["fields"]]
+    return []
+
+
+def _options(field: dict, program: dict) -> list[str] | None:
+    """선택형 항목의 보기. 사업에 정해진 값이 있으면 그걸 쓴다."""
+    if field.get("type") != "select":
+        return None
+    key = (field.get("key") or "") + (field.get("label") or "")
+    if "주기" in key or "frequency" in key:
+        return ["월", "연", "일시"]
+    if "방식" in key or "유형" in key or "type" in key:
+        return program.get("methods") or ["정기", "일시", "봉사", "유산"]
+    if "사업" in key or "program" in key:
+        return [program.get("name", "")]
+    return None
+
+
+def _schema_version(fields: list[dict]) -> str:
+    """항목 구성이 바뀌면 값이 바뀐다. 진행 중이던 대화가 어긋난 걸 알아채는 용도."""
+    keys = "|".join(sorted(str(f.get("key")) for f in fields))
+    return f"v{abs(hash(keys)) % 100000:05d}"
+
+
+# ── 약정 체결 ──────────────────────────────────────────────
+async def create(program_id: str, values: dict, signer: dict) -> dict:
+    """PDF를 만들고 모두싸인으로 서명 요청을 보낸다.
+
+    ⚠️ 이 함수는 서명자에게 실제 이메일을 발송한다.
+    """
+    program = get_program(program_id)
+    if not program:
+        raise ValueError(f"모금 사업을 찾을 수 없습니다: {program_id}")
+    if not (signer.get("name") or "").strip():
+        raise ValueError("서명자 이름이 필요합니다.")
+    if not (signer.get("email") or "").strip():
+        raise ValueError("서명자 이메일이 필요합니다.")
+
+    fields = _resolve_fields(program)
+    missing = missing_fields(fields, values)
+    if missing:
+        raise ValueError(f"아직 비어 있는 항목이 있습니다: {', '.join(missing)}")
+
+    pdf_base64 = build_agreement_pdf(program, fields, values, signer)
+    title = f"{program.get('name', '기부')} 약정서 - {signer['name']}"
+
+    try:
+        result = await modusign.request_signature(
+            title=title,
+            pdf_base64=pdf_base64,
+            signer=signer,
+            metadatas=_metadatas(program, values),
+            anchor_text=SIGN_ANCHOR,
+        )
+    except ModusignError as e:
+        raise ModusignError(f"서명 요청 발송에 실패했습니다: {e}") from e
+
+    record = {
+        "id": store.next_id("agreements", "agr"),
+        "program_id": program_id,
+        "program_name": program.get("name"),
+        "document_id": result.get("id"),
+        "signer_name": signer["name"],
+        "signer_email": signer["email"],
+        "status": result.get("status", "ON_GOING"),
+        "values": values,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "signed_at": None,
+    }
+    store.append("agreements", record)
+    return record
+
+
+def missing_fields(fields: list[dict], values: dict) -> list[str]:
+    """스키마와 입력값의 차집합. 챗봇이 '빠진 것'을 판단하는 기준과 같다."""
+    out = []
+    for f in fields:
+        if f.get("type") in ("sign", "check"):
+            continue
+        if f.get("assignee", DONOR_ROLE) != DONOR_ROLE:
+            continue
+        if not str(values.get(f.get("key"), "")).strip():
+            out.append(f.get("label") or f.get("key"))
+    return out
+
+
+def _metadatas(program: dict, values: dict) -> dict:
+    """집계에 쓰는 값만 골라 모두싸인 metadatas로 만든다(최대 10개)."""
+    today = date.today()
+    meta = {
+        "program_id": program.get("id", ""),
+        "program_name": program.get("name", ""),
+        "start_date": today.isoformat(),
+    }
+
+    for key, names in _ALIASES.items():
+        for name in names:
+            if values.get(name) not in (None, ""):
+                meta[key] = values[name]
+                break
+
+    # 기간이 있으면 종료일을 계산해 둔다. 대시보드의 만료 임박·예상 수입이 이걸 쓴다.
+    months = _to_int(meta.get("term_months"))
+    if months:
+        meta["end_date"] = _add_months(today, months).isoformat()
+
+    if "donation_type" not in meta:
+        freq = str(meta.get("frequency", ""))
+        meta["donation_type"] = "정기" if freq in ("월", "연") else "일시"
+    meta.setdefault("receipt_required", "true")
+
+    return {k: v for k, v in list(meta.items())[:METADATA_LIMIT] if v not in (None, "")}
+
+
+def _add_months(d: date, months: int) -> date:
+    """개월을 더한다. 말일은 그 달의 마지막 날로 맞춘다(1/31 + 1개월 = 2/28)."""
+    y, m = d.year, d.month + months
+    y += (m - 1) // 12
+    m = (m - 1) % 12 + 1
+    last = calendar.monthrange(y, m)[1]
+    return date(y, m, min(d.day, last))
+
+
+def _to_int(value) -> int | None:
+    try:
+        return int(str(value).replace(",", "").replace("개월", "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+# ── 상태 조회 ──────────────────────────────────────────────
+def get_record(agreement_id: str) -> dict | None:
+    return store.find("agreements", agreement_id)
+
+
+async def status(agreement_id: str) -> dict:
+    """모두싸인에서 최신 서명 상태를 읽어 기록에 반영한다."""
+    record = get_record(agreement_id)
+    if not record:
+        raise ValueError(f"약정을 찾을 수 없습니다: {agreement_id}")
+    if not record.get("document_id"):
+        return record
+
+    doc = await modusign.fetch_document_fresh(record["document_id"])
+    if doc:
+        record["status"] = doc.get("status", record["status"])
+        if doc.get("completed_at"):
+            record["signed_at"] = doc["completed_at"]
+        store.upsert("agreements", record)
+    return record
+
+
+def mark_from_webhook(document_id: str, event: str) -> dict | None:
+    """웹훅으로 받은 문서 이벤트를 기록에 반영한다."""
+    for record in store.read_list("agreements"):
+        if record.get("document_id") != document_id:
+            continue
+        if event == "document_all_signed":
+            record["status"] = "COMPLETED"
+            record["signed_at"] = datetime.now().isoformat(timespec="seconds")
+        elif event == "document_rejected":
+            record["status"] = "REJECTED"
+        elif event in ("document_request_canceled", "document_signing_canceled"):
+            record["status"] = "CANCELED"
+        record["last_event"] = event
+        store.upsert("agreements", record)
+        return record
+    return None

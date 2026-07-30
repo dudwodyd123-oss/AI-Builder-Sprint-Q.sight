@@ -23,8 +23,10 @@ from .routers import (
     donations,
     fulfillment,
     programs,
+    public,
     reports,
     templates,
+    webhooks,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -40,7 +42,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (dashboard, donations, templates, programs, fulfillment, reports):
+for r in (dashboard, donations, templates, programs, fulfillment, reports,
+          public, webhooks):
     app.include_router(r.router)
 
 

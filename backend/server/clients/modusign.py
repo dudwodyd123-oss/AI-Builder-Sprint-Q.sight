@@ -39,30 +39,51 @@ RATE_LIMIT_RETRIES = 2
 #   실제로 호출해 보기 전까지 맞다고 단정하면 안 된다.
 _ENDPOINTS = {
     # ── 검증됨 ──────────────────────────────────────────
-    "documents": "/documents",                                  # 200 확인
-    "document": "/documents/{document_id}",                     # 403(존재)
+    "documents": "/documents",                                   # 200 확인 · 서명 요청 생성(POST)도 여기
+    "document": "/documents/{document_id}",                      # 403(존재)
     "document_histories": "/documents/{document_id}/histories",  # 403(존재)
-    "document_file": "/documents/{document_id}/file",           # 400(존재)
-    "templates": "/templates",                                  # 200 확인
-    "template": "/templates/{template_id}",                     # 403(존재)
+    "document_file": "/documents/{document_id}/file",            # 400(존재)
+    "templates": "/templates",                                   # 200 확인
+    "template": "/templates/{template_id}",                      # 403(존재)
+    "webhooks": "/webhooks",                                     # 200 확인
+    "embedded_drafts": "/embedded-drafts",                       # 201 확인
 
-    # ── 미검증 (POST 전용) ──────────────────────────────
+    # ── 미검증 (POST 전용이라 GET으로 확인 불가) ────────
     "remind": "/documents/{document_id}/participants/{participant_id}/remind",
-    "embedded_drafts": "/embedded-drafts",
-    "request_with_template": "/documents/request-with-template",
+    # 공식 문서에 있는 경로. 템플릿으로 임베디드 초안을 만든다.
+    "embedded_drafts_with_template": "/embedded-drafts/create-with-template",
 }
 
-# embeddedUrl에 붙이는 편집기 모드 파라미터.
-# ⚠️ 모두싸인 공식 문서에서 확인된 값이 아니라 팀에서 임의로 정한 값이다.
-#    편집기가 모르는 파라미터를 무시하면 일반 초안 편집 모드로 열린다.
-#    공식 값이 확인되면 여기만 바꾸고, 필요 없으면 빈 문자열로 두면 된다.
-EMBEDDED_EDITOR_MODE = "create-template"
+# embeddedUrl에 붙이는 모드 파라미터.
+# 공식 문서가 정의한 값은 preview 하나뿐이다(내용만 보여주고 서명 요청은 막는 모드).
+# 'create-template'은 팀에서 임의로 만든 값이라 아무 효과가 없어 쓰지 않는다.
+# 일반 편집 화면으로 열려면 빈 문자열로 둔다.
+EMBEDDED_EDITOR_MODE = ""
 
 # 감사 추적 인증서 전용 API는 존재하지 않는다.
 #   /documents/{id}/audit-trail 을 포함해 audit-trails · certificate · trail ·
 #   logs 등 8가지 변형을 모두 확인했으나 전부 404였다(2026-07-30).
 #   서명 완료 PDF(document_file) 안에 감사 추적 페이지가 포함되어 나온다.
 AUDIT_TRAIL_IN_SIGNED_PDF = True
+
+# 모두싸인이 문서 하나에 받아주는 metadatas 최대 개수(공식 문서 기준).
+# 기부 정보 키가 딱 이 개수라 새 키를 넣으려면 기존 키를 빼야 한다.
+METADATA_LIMIT = 10
+
+# 웹훅으로 받을 수 있는 이벤트(공식 문서 기준). 전부 '문서' 이벤트이고
+# 템플릿 저장 이벤트는 없다. 응답이 2xx가 아니거나 10초를 넘기면 최대 5회 재시도한다.
+WEBHOOK_EVENTS = [
+    "document_started",
+    "document_signed",
+    "document_all_signed",
+    "document_rejected",
+    "document_request_canceled",
+    "document_signing_canceled",
+    "document_modification_started",
+    "document_modification_completed",
+    "document_modification_approval_requested",
+    "document_modification_canceled",
+]
 
 # 모두싸인 문서 상태 → 화면 표기
 STATUS_LABELS = {
@@ -344,9 +365,10 @@ class ModusignClient:
     async def find_new_template(self, known_ids: list[str]) -> dict | None:
         """임베디드 편집기에서 저장된 템플릿을 찾아낸다.
 
-        모두싸인은 편집기 저장 완료를 알려주는 웹훅/콜백을 제공하지 않는다.
-        그래서 초안을 만들기 전 템플릿 목록을 기억해 두었다가, 담당자가 저장한 뒤
-        목록을 다시 읽어 새로 생긴 것을 찾는 방식으로 templateId를 회수한다.
+        모두싸인 웹훅은 문서 이벤트(document_started, document_all_signed 등)만
+        제공하고 '템플릿이 저장됨' 이벤트는 없다. 그래서 초안을 만들기 전 템플릿
+        목록을 기억해 두었다가, 담당자가 저장한 뒤 목록을 다시 읽어 새로 생긴
+        것을 찾는 방식으로 templateId를 회수한다.
         """
         templates = await self.list_templates()
         known = set(known_ids or [])
@@ -357,52 +379,67 @@ class ModusignClient:
         fresh.sort(key=lambda t: t.get("updated_at") or "", reverse=True)
         return fresh[0]
 
-    async def request_with_template(self, template_id: str, signer: dict, values: dict) -> dict:
-        """템플릿으로 약정서 서명을 요청한다.
+    async def request_signature(
+        self,
+        title: str,
+        pdf_base64: str,
+        signer: dict,
+        metadatas: dict | None = None,
+        anchor_text: str = "(서명)",
+    ) -> dict:
+        """완성된 약정서 PDF로 전자서명을 요청한다.
 
-        기관용 웹(W1~W9)에서는 쓰지 않는다. 개인용 웹이 약정을 만들 때 호출하는
-        진입점이라 클라이언트 쪽에 함께 둔다. values의 키는 `_normalize_document`가
-        읽는 metadatas 키와 같아야 기관 화면 집계가 맞는다.
+        POST /documents — 템플릿 없이 PDF를 그대로 올리는 방식이다.
+        서명란 위치는 PDF 본문의 anchor_text(기본 "(서명)")를 찾아 그 옆에 놓는다.
+        템플릿을 쓰지 않으므로 templateId를 회수할 필요가 없다.
+
+        metadatas의 키는 `_normalize_document`가 읽는 키와 같아야 기관 화면
+        집계가 맞는다. 모두싸인은 metadatas를 최대 10개까지만 받는다.
+
+        ⚠️ 이 호출은 서명자에게 실제로 이메일을 보낸다.
         """
         if self.mock:
             doc_id = store.next_id("signature_requests", "req")
             record = {
                 "id": doc_id,
-                "template_id": template_id,
+                "title": title,
                 "signer": signer,
-                "values": values,
+                "metadatas": metadatas or {},
                 "status": "ON_GOING",
                 "created_at": datetime.now().isoformat(timespec="seconds"),
-                "embedded_url": None,  # 데모 모드에는 띄울 서명 화면이 없다.
                 "mock": True,
             }
             store.append("signature_requests", record)
             return record
 
-        # ⚠️ 이 경로는 아직 검증되지 않았다. GET으로 찔러본 결과
-        #    /documents/request-with-template 는 /documents/{id} 로 해석되어
-        #    실재하는 라우트인지 확인할 수 없었다(2026-07-30).
-        #    개인용 웹 담당자와 실제 응답을 맞춰본 뒤 확정할 것.
+        meta = list((metadatas or {}).items())[:METADATA_LIMIT]
         body = {
-            "templateId": template_id,
-            "document": {
-                "title": values.get("title", "기부 약정서"),
-                "participantMappings": [
-                    {
-                        "role": "기부자",
-                        "name": signer.get("name"),
-                        "signingMethod": {"type": "KAKAO", "value": signer.get("phone", "")},
-                        "signingDuration": 7,
-                    }
-                ],
-                "metadatas": [{"key": k, "value": str(v)} for k, v in values.items()],
-            },
+            "title": title[:100],  # 문서 제목은 1~100자
+            "file": {"base64": pdf_base64, "extension": "pdf"},
+            "participants": [
+                {
+                    "name": signer.get("name"),
+                    "signingOrder": 1,
+                    "signingMethod": {"type": "EMAIL", "value": signer.get("email")},
+                    "fields": [
+                        {
+                            "type": "SIGNATURE",
+                            "required": True,
+                            "signatureTypes": ["SIGN", "STAMP"],
+                            "position": {"anchor": {"text": anchor_text, "offset": {"x": 0.02, "y": 0}}},
+                            "size": {"width": 0.18, "height": 0.06},
+                        }
+                    ],
+                }
+            ],
+            "metadatas": [{"key": k, "value": str(v)} for k, v in meta],
         }
-        payload = await self._request("POST", _ENDPOINTS["request_with_template"], json=body)
+        payload = await self._request("POST", _ENDPOINTS["documents"], json=body)
+        self.invalidate_documents()
         return {
-            "id": payload.get("id") or payload.get("documentId"),
+            "id": payload.get("id"),
             "status": payload.get("status", "ON_GOING"),
-            "embedded_url": payload.get("embeddedUrl"),
+            "raw": payload,
         }
 
 

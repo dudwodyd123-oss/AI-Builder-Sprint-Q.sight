@@ -194,8 +194,55 @@ python backend/tools/check_modusign.py
 | `GET /documents/{id}/file` | 검증됨 | 400(라우트 존재) |
 | `GET /documents/{id}/histories` | 검증됨 | 403(라우트 존재) |
 | `POST /embedded-drafts` | 검증됨 | **201 확인** · `title`은 최상위 필수, `participantMappings`는 선택 |
+| `GET /webhooks` | 검증됨 | 200 · 현재 등록된 웹훅 0건 |
+| `POST /documents` | **서명 요청 경로** | 문서 생성 = 서명 요청. 아래 참고 |
 | `GET /documents/{id}/audit-trail` | **없음** | 404 (변형 8종 모두 404) |
-| `POST /documents/request-with-template` | **미검증** | POST 전용이라 확인 불가 |
+| `POST /documents/request-with-template` | **없는 경로** | `/documents/{id}`로 해석됨. 쓰지 말 것 |
+
+### 서명 요청은 `POST /documents`
+
+템플릿 없이 **완성된 PDF를 base64로 올려** 서명을 요청합니다.
+서명란 위치는 PDF 본문의 앵커 텍스트(예: `(서명)`)를 찾아 그 옆에 놓습니다.
+
+```
+POST /documents
+{
+  "title": "...",                                  // 1~100자, 필수
+  "file": { "base64": "...", "extension": "pdf" }, // 필수
+  "participants": [{
+    "name": "...",
+    "signingOrder": 1,
+    "signingMethod": { "type": "EMAIL", "value": "..." },
+    "fields": [{
+      "type": "SIGNATURE", "required": true,
+      "signatureTypes": ["SIGN", "STAMP"],
+      "position": { "anchor": { "text": "(서명)", "offset": { "x": 0.02, "y": 0 } } },
+      "size": { "width": 0.18, "height": 0.06 }
+    }]
+  }],
+  "metadatas": [{ "key": "...", "value": "..." }]   // 최대 10개
+}
+```
+
+이 방식은 templateId가 필요 없어서 W6의 템플릿 회수 문제를 우회합니다.
+**metadatas는 최대 10개**라 기부 정보 키가 이미 한도에 가깝습니다.
+
+### 웹훅
+
+문서 이벤트 10종을 받을 수 있습니다(`document_started`, `document_signed`,
+`document_all_signed`, `document_rejected`, `document_request_canceled`,
+`document_signing_canceled`, `document_modification_*` 4종).
+모두싸인 웹 → 설정 → API → Webhook에서 등록합니다.
+
+**주의 두 가지.** 응답이 2xx가 아니거나 처리가 10초를 넘으면 **최대 5회 재시도**하므로,
+먼저 2xx를 돌려주고 실제 처리는 뒤에서 해야 중복 처리를 막을 수 있습니다.
+그리고 **템플릿 저장 이벤트는 없습니다** — 문서 이벤트뿐이라 W6의 templateId
+회수는 여전히 목록 비교로 해야 합니다.
+
+### embeddedUrl 모드 파라미터
+
+공식 문서가 정의한 값은 **`mode=preview` 하나뿐**입니다(내용만 보여주고 서명 요청은 막음).
+팀에서 쓰던 `mode=create-template`은 임의로 만든 값이라 효과가 없어 제거했습니다.
 
 라우트 존재 판별법: `403`/`400` = 라우트 있음(권한·리소스 문제),
 `404 "Cannot GET"` = 라우트 없음.
@@ -233,15 +280,13 @@ python backend/tools/check_modusign.py
 갱신 토큰(`rt`, 24시간)이 들어 있습니다. 저장하거나 로그에 남기면 안 됩니다.
 서버는 이 URL을 DB에 쓰지 않고 브라우저로 한 번만 내려보냅니다.
 
-**2. `id`는 초안 ID이지 templateId가 아닙니다.** 그리고 모두싸인은
-**편집기 저장 완료를 알려주는 웹훅·콜백을 제공하지 않습니다.**
-그래서 초안을 만들기 전 템플릿 목록을 기억해 두었다가, 담당자가 "템플릿 연결"을
-누르면 목록을 다시 읽어 새로 생긴 것을 찾는 방식으로 templateId를 회수합니다
-(`find_new_template`). 공식 콜백이 생기면 이 우회를 걷어내면 됩니다.
+**2. `id`는 초안 ID이지 templateId가 아닙니다.** 모두싸인 웹훅에는 문서 이벤트만
+있고 **템플릿 저장 이벤트가 없어서**, 편집기에서 저장이 끝난 시점을 알 방법이
+없습니다. 그래서 초안을 만들기 전 템플릿 목록을 기억해 두었다가, 담당자가
+"템플릿 연결"을 누르면 목록을 다시 읽어 새로 생긴 것을 찾습니다(`find_new_template`).
 
-**3. `mode=create-template`은 공식 파라미터가 아닙니다.** 팀에서 임의로 정한
-값이라 편집기가 무시할 수 있습니다. `modusign.py`의 `EMBEDDED_EDITOR_MODE`
-상수에서 바꾸거나 빈 문자열로 끌 수 있습니다.
+**3. `mode=create-template`은 공식 파라미터가 아니어서 제거했습니다.**
+공식 모드는 `preview` 하나뿐입니다.
 
 ### 남은 확인
 

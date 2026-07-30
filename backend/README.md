@@ -100,6 +100,24 @@ W5 표의 **출처** 열이 각 항목의 근거를 보여줍니다.
 임의의 신뢰도 %를 만들어 보여주지 않습니다. 근거 없는 숫자는 담당자가
 검수를 건너뛰게 만들기 때문입니다.
 
+### .env를 고쳤으면 서버를 다시 켜야 합니다
+
+`.env`는 서버가 시작할 때 한 번만 읽습니다. `--reload`는 `.py` 파일만 감시하고,
+uvicorn의 파일 감시기가 `.`으로 시작하는 숨김 파일을 무시하기 때문에
+`--reload-include .env`를 붙여도 동작하지 않습니다(확인함).
+
+키를 넣거나 `MODUSIGN_FORCE_MOCK` 같은 값을 바꿨다면 **직접 재시작**하세요.
+서버를 켠 터미널에서 `Ctrl+C` 후 다시 실행하면 됩니다.
+
+터미널을 찾을 수 없을 때(포트가 잡혀 있을 때):
+
+```powershell
+Get-NetTCPConnection -LocalPort 8080 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
+
+재시작 후 브라우저도 새로고침하세요. 사이드바 하단의 연동 상태
+(`데모 데이터` / `모두싸인 연결됨`)로 반영됐는지 확인할 수 있습니다.
+
 ### 개발 중 캐시
 
 정적 파일에 `Cache-Control: no-store`를 붙입니다(`main.py`의 `no_cache_static`).

@@ -17,6 +17,9 @@ const TYPE_LABEL = {
 const TYPES = ['text', 'number', 'select', 'check', 'textarea', 'date', 'sign'];
 const ASSIGNEES = ['기부자', '담당자', '입회인'];
 
+// 값이 채워져 있으면 기관 몫이다. 챗봇은 이 항목을 묻지 않는다.
+const isFilled = (f) => typeof f.value === 'boolean' || String(f.value ?? '').trim() !== '';
+
 export async function render(root, ctx) {
   const { templateId } = ctx.params;
   const source = await loadSource(templateId);
@@ -26,6 +29,7 @@ export async function render(root, ctx) {
     key: f.key || `field_${i + 1}`,
     assignee: f.assignee || '기부자',
     type: f.type || 'text',
+    value: f.value ?? '',   // 기관이 미리 채우는 값. 비어 있으면 기부자가 채운다.
   }));
 
   ctx.setTitle(source.name);
@@ -65,8 +69,9 @@ export async function render(root, ctx) {
           <button class="btn sm" id="add-field" style="margin-top:10px;width:100%">+ 항목 추가</button>
 
           <div class="note" style="margin-top:14px">
-            기부자가 개인용 웹에서 채울 항목입니다. 여기서 정한 그대로
-            챗봇이 물어보고, 계약서에도 같은 순서로 들어갑니다.
+            <b style="color:var(--ink)">값을 미리 채운 항목은 챗봇이 묻지 않습니다.</b><br>
+            후원기관명·담당 부서처럼 기관이 정하는 값은 여기 적어두세요.
+            비워 둔 항목만 기부자가 개인용 웹에서 채웁니다.
           </div>
         </div>
       </div>
@@ -76,8 +81,11 @@ export async function render(root, ctx) {
   const nameInput = root.querySelector('#tpl-name');
 
   function paint() {
-    list.innerHTML = fields.map((f, i) => `
-      <div class="field-pill" data-i="${i}" style="align-items:flex-start;flex-wrap:wrap;gap:6px">
+    list.innerHTML = fields.map((f, i) => {
+      const prefilled = isFilled(f);
+      return `
+      <div class="field-pill ${prefilled ? 'placed' : ''}" data-i="${i}"
+           style="align-items:flex-start;flex-wrap:wrap;gap:6px">
         <input class="f-label" value="${esc(f.label || '')}" placeholder="항목 이름"
                style="flex:1 1 100%;border:1px solid var(--line);border-radius:6px;padding:6px 9px">
         <select class="f-type" style="border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-size:12px">
@@ -89,15 +97,32 @@ export async function render(root, ctx) {
         <span class="spacer"></span>
         <button class="btn sm ghost" data-move="${i}" title="위로">↑</button>
         <button class="btn sm ghost" data-remove="${i}" title="삭제">✕</button>
-      </div>`).join('');
+        ${f.type === 'sign' ? '' : `
+          <input class="f-value" value="${esc(f.value ?? '')}"
+                 placeholder="기관이 미리 채울 값 (비우면 기부자가 입력)"
+                 style="flex:1 1 100%;border:1px solid ${prefilled ? '#9CC7AC' : 'var(--line)'};
+                        border-radius:6px;padding:6px 9px;font-size:12.5px;
+                        background:${prefilled ? '#F6FBF8' : '#fff'}">`}
+      </div>`;
+    }).join('');
 
-    const donor = fields.filter((f) => f.assignee === '기부자' && f.type !== 'sign').length;
-    root.querySelector('#field-count').textContent = `${fields.length}개 · 기부자 입력 ${donor}개`;
+    paintCount();
+  }
+
+  function paintCount() {
+    const donor = fields.filter((f) => f.type !== 'sign' && f.assignee === '기부자' && !isFilled(f)).length;
+    const pre = fields.filter((f) => f.type !== 'sign' && isFilled(f)).length;
+    root.querySelector('#field-count').textContent =
+      `기관이 채움 ${pre}개 · 기부자가 채울 ${donor}개`;
   }
 
   list.addEventListener('input', (e) => {
     const row = e.target.closest('[data-i]');
-    if (row && e.target.matches('.f-label')) fields[Number(row.dataset.i)].label = e.target.value;
+    if (!row) return;
+    const f = fields[Number(row.dataset.i)];
+    if (e.target.matches('.f-label')) f.label = e.target.value;
+    // 값 입력은 타이핑마다 다시 그리면 포커스가 튄다. 카운트만 갱신한다.
+    if (e.target.matches('.f-value')) { f.value = e.target.value; paintCount(); }
   });
 
   list.addEventListener('change', (e) => {
@@ -124,7 +149,7 @@ export async function render(root, ctx) {
   });
 
   root.querySelector('#add-field').onclick = () => {
-    fields.push({ key: `field_${Date.now()}`, label: '', type: 'text', assignee: '기부자' });
+    fields.push({ key: `field_${Date.now()}`, label: '', type: 'text', assignee: '기부자', value: '' });
     paint();
   };
 
@@ -165,8 +190,8 @@ export async function render(root, ctx) {
 
     const usable = fields.filter((f) => (f.label || '').trim());
     if (!usable.length) return toast('항목을 하나 이상 입력해주세요.', 'error');
-    if (!usable.some((f) => f.assignee === '기부자' && f.type !== 'sign')) {
-      return toast('기부자가 채울 항목이 최소 1개 필요합니다.', 'error');
+    if (!usable.some((f) => f.type !== 'sign' && f.assignee === '기부자' && !isFilled(f))) {
+      return toast('기부자가 채울 항목이 최소 1개 필요합니다. 값을 미리 채우면 챗봇이 묻지 않습니다.', 'error');
     }
 
     btn.disabled = true;

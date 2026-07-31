@@ -162,7 +162,8 @@ async def preview_template(body: PreviewRequest):
         "start_date": date.today().isoformat(),
         "end_date": date.today().isoformat(),
     }
-    sample = {f["key"]: _sample_value(f) for f in fields}
+    # 기관이 미리 채운 값은 그대로 쓰고, 기부자가 채울 칸만 예시 값으로 보여준다.
+    sample = {f["key"]: (f["value"] if _filled(f) else _sample_value(f)) for f in fields}
     pdf_base64 = contract.build_agreement_pdf(
         program, fields, sample,
         {"name": "홍길동", "email": "donor@example.com"},
@@ -172,6 +173,11 @@ async def preview_template(body: PreviewRequest):
         media_type="application/pdf",
         headers={"Content-Disposition": 'inline; filename="preview.pdf"'},
     )
+
+
+def _filled(field: dict) -> bool:
+    value = field.get("value")
+    return isinstance(value, bool) or str(value or "").strip() != ""
 
 
 def _sample_value(field: dict):

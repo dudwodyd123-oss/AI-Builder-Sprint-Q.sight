@@ -47,22 +47,33 @@ _ALIASES = {
 def contract_form(program_id: str) -> dict:
     """사업에 연결된 계약서의 입력 항목을 돌려준다.
 
-    개인용 웹 챗봇이 이걸 체크리스트로 삼는다. 기관이 서식을 바꾸면
-    여기 결과가 바뀌고 챗봇 질문도 저절로 따라간다.
+    항목은 두 갈래로 나뉜다.
+
+    - prefilled : 기관이 서식을 만들 때 미리 채워 둔 값(후원기관명, 담당 부서 등).
+                  이미 정해진 값이라 챗봇이 물어보면 안 된다.
+    - fields    : 기부자가 채워야 하는 나머지. 챗봇은 이것만 물어본다.
+
+    기관이 서식을 바꾸면 여기 결과가 바뀌고 챗봇 질문도 저절로 따라간다.
     """
     program = get_program(program_id)
     if not program:
         raise ValueError(f"모금 사업을 찾을 수 없습니다: {program_id}")
 
     fields = _resolve_fields(program)
-    donor_fields = [f for f in fields if f.get("assignee", DONOR_ROLE) == DONOR_ROLE
-                    and f.get("type") != "sign"]
+    prefilled, donor_fields = split_fields(fields)
 
     return {
         "program_id": program_id,
         "program_name": program.get("name"),
-        "ready": bool(donor_fields),
+        "ready": bool(donor_fields) or bool(prefilled),
         "schema_version": _schema_version(fields),
+        # 기관이 미리 채운 값. 개인용 웹은 그대로 들고 있다가 ③에 되돌려주면 된다.
+        "prefilled": {f["key"]: f.get("value") for f in prefilled},
+        "prefilled_labels": [
+            {"key": f["key"], "label": f.get("label"), "value": f.get("value")}
+            for f in prefilled
+        ],
+        # 챗봇이 물어볼 항목
         "fields": [
             {
                 "key": f.get("key"),
@@ -73,9 +84,37 @@ def contract_form(program_id: str) -> dict:
             }
             for f in donor_fields
         ],
-        "note": "" if donor_fields else
+        "note": "" if (donor_fields or prefilled) else
                 "이 사업에 연결된 계약서 서식이 아직 없습니다. 기관이 서식을 등록해야 합니다.",
     }
+
+
+def split_fields(fields: list[dict]) -> tuple[list[dict], list[dict]]:
+    """항목을 (기관이 미리 채운 것, 기부자가 채울 것)으로 나눈다.
+
+    판단 기준은 '값이 이미 있는가'다. 담당자 몫이든 기부자 몫이든,
+    기관이 값을 적어 두었으면 챗봇은 그 항목을 건너뛴다.
+    """
+    prefilled, remaining = [], []
+    for f in fields:
+        if f.get("type") == "sign":
+            continue  # 서명란은 PDF 앵커로 처리한다
+        if _has_value(f):
+            prefilled.append(f)
+        elif f.get("assignee", DONOR_ROLE) == DONOR_ROLE:
+            remaining.append(f)
+        else:
+            # 담당자 몫인데 값이 비어 있다. 기부자에게 물어볼 수는 없으니
+            # 빈 칸으로 두고 계약서에는 "—"로 찍힌다.
+            prefilled.append({**f, "value": ""})
+    return prefilled, remaining
+
+
+def _has_value(field: dict) -> bool:
+    value = field.get("value")
+    if isinstance(value, bool):
+        return True
+    return str(value or "").strip() != ""
 
 
 def _resolve_fields(program: dict) -> list[dict]:
@@ -145,7 +184,11 @@ async def create(program_id: str, values: dict, signer: dict) -> dict:
     if missing:
         raise ValueError(f"아직 비어 있는 항목이 있습니다: {', '.join(missing)}")
 
-    pdf_base64 = build_agreement_pdf(program, fields, values, signer)
+    # 기관이 미리 채운 값을 합친다. 기부자가 같은 키를 보내와도 기관 값이 이긴다
+    # (후원기관명 같은 건 기부자가 바꿀 수 있으면 안 된다).
+    merged = merge_values(fields, values)
+
+    pdf_base64 = build_agreement_pdf(program, fields, merged, signer)
     title = f"{program.get('name', '기부')} 약정서 - {signer['name']}"
 
     try:
@@ -153,7 +196,7 @@ async def create(program_id: str, values: dict, signer: dict) -> dict:
             title=title,
             pdf_base64=pdf_base64,
             signer=signer,
-            metadatas=_metadatas(program, values),
+            metadatas=_metadatas(program, merged),
             anchor_text=SIGN_ANCHOR,
         )
     except ModusignError as e:
@@ -167,7 +210,7 @@ async def create(program_id: str, values: dict, signer: dict) -> dict:
         "signer_name": signer["name"],
         "signer_email": signer["email"],
         "status": result.get("status", "ON_GOING"),
-        "values": values,
+        "values": merged,
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "signed_at": None,
     }
@@ -176,16 +219,31 @@ async def create(program_id: str, values: dict, signer: dict) -> dict:
 
 
 def missing_fields(fields: list[dict], values: dict) -> list[str]:
-    """스키마와 입력값의 차집합. 챗봇이 '빠진 것'을 판단하는 기준과 같다."""
+    """스키마와 입력값의 차집합. 챗봇이 '빠진 것'을 판단하는 기준과 같다.
+
+    기관이 미리 채운 항목은 기부자가 안 보내도 빠진 것이 아니다.
+    """
+    _, donor_fields = split_fields(fields)
     out = []
-    for f in fields:
-        if f.get("type") in ("sign", "check"):
-            continue
-        if f.get("assignee", DONOR_ROLE) != DONOR_ROLE:
+    for f in donor_fields:
+        if f.get("type") == "check":
             continue
         if not str(values.get(f.get("key"), "")).strip():
             out.append(f.get("label") or f.get("key"))
     return out
+
+
+def merge_values(fields: list[dict], values: dict) -> dict:
+    """기부자 입력 위에 기관 선입력 값을 덮어쓴다.
+
+    순서가 중요하다. 기관이 정한 값(후원기관명 등)은 기부자가 같은 키로
+    무엇을 보내오든 바뀌면 안 된다.
+    """
+    prefilled, _ = split_fields(fields)
+    merged = dict(values)
+    for f in prefilled:
+        merged[f["key"]] = f.get("value", "")
+    return merged
 
 
 def _metadatas(program: dict, values: dict) -> dict:

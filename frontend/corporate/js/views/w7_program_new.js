@@ -1,7 +1,7 @@
 // W7 모금 사업 등록 — 공고문 자동 채우기 + 추천 태그
 
 import { api } from '../api.js';
-import { badge, esc, num, pct, progressBar, toast, won } from '../ui.js';
+import { badge, esc, num, pct, programSegment, progressBar, toast, won } from '../ui.js';
 
 export const TITLE = '모금 사업 등록';
 export const SCREEN = 'W7';
@@ -15,6 +15,7 @@ export async function render(root, ctx) {
   ]);
 
   ctx.setActions(`
+    ${programSegment('programs')}
     <button class="btn" id="autofill">공고문 올려서 자동 채우기</button>
     <input type="file" id="notice" accept=".pdf,.png,.jpg,.jpeg,.hwp,.docx" hidden>`);
 

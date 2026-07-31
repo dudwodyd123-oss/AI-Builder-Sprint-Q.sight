@@ -1,7 +1,7 @@
 // W5 서식 업로드 · 항목 추출 — Document Parse + Information Extract
 
 import { api } from '../api.js';
-import { badge, bindDropzone, esc, toast } from '../ui.js';
+import { badge, bindDropzone, esc, programSegment, toast } from '../ui.js';
 
 export const TITLE = '서식 업로드 · 항목 추출';
 export const SCREEN = 'W5';
@@ -23,8 +23,7 @@ const SOURCE = {
 export async function render(root, ctx) {
   const templates = await api.get('/api/templates');
 
-  ctx.setActions(`
-    <a class="btn" href="#/programs/new">모금 사업 등록</a>`);
+  ctx.setActions(programSegment('templates'));
 
   root.innerHTML = `
     <div class="grid grid-3-2">

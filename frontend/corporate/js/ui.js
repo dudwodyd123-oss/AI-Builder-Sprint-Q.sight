@@ -85,6 +85,17 @@ export function progressBar(rate, coral = false) {
   return `<div class="progress ${coral ? 'coral' : ''}"><i style="width:${width}"></i></div>`;
 }
 
+// 모금 사업 메뉴 안에서 '사업 / 계약서 서식'을 오가는 전환 컨트롤.
+// 서식은 사업에 연결해 쓰는 것이라 메뉴를 따로 두지 않고 여기서 넘나든다.
+export function programSegment(current) {
+  const tabs = [
+    { key: 'programs', label: '모금 사업', href: '#/programs/new' },
+    { key: 'templates', label: '계약서 서식', href: '#/templates/new' },
+  ];
+  return `<div class="segment">${tabs.map((t) => `
+    <a href="${t.href}" class="${t.key === current ? 'on' : ''}">${t.label}</a>`).join('')}</div>`;
+}
+
 // 달성률 표시. 10% 이상은 정수, 그 미만은 소수 한 자리까지 보여준다.
 export function pct(rate) {
   const v = Number(rate) || 0;

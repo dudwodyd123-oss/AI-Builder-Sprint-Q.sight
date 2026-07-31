@@ -105,12 +105,30 @@ a { color: inherit; }
 
 .grid { display: grid; gap: 16px; }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-2 { grid-template-columns: 1fr 1fr; }
 .grid-3-2 { grid-template-columns: 1.35fr 1fr; }
 @media (max-width: 1180px) {
-  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-4, .grid-3 { grid-template-columns: repeat(2, 1fr); }
   .grid-2, .grid-3-2 { grid-template-columns: 1fr; }
 }
+@media (max-width: 760px) {
+  .grid-4, .grid-3 { grid-template-columns: 1fr; }
+}
+
+/* 눌러서 들어가는 카드 — 이행 관리의 사업 카드 등 */
+.card[data-program] { transition: border-color .15s, transform .15s; }
+.card[data-program]:hover { border-color: var(--navy-soft); transform: translateY(-2px); }
+
+/* 화면 안 전환 (사업 / 계약서 서식) */
+.segment { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
+.segment a {
+  padding: 6px 14px; font-size: 13px; font-weight: 600; text-decoration: none;
+  color: var(--ink-2); background: #fff;
+}
+.segment a + a { border-left: 1px solid var(--line); }
+.segment a:hover { background: #F7F9FB; }
+.segment a.on { background: var(--navy); color: #fff; }
 
 .btn {
   border: 1px solid var(--line); background: #fff; color: var(--ink);

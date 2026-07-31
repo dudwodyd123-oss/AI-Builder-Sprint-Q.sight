@@ -75,6 +75,171 @@ def summary(documents: list[dict], today: date | None = None) -> dict:
     }
 
 
+def _installment_status(inst: dict, today: date) -> tuple[str, str]:
+    """회차 하나의 표시 상태. 목록·드릴다운이 같은 기준을 쓰도록 한 곳에 둔다."""
+    if inst.get("paid_date"):
+        if inst.get("status") == "지연 완료":
+            return "지연 완료", "warning"
+        return ("자동 매칭" if inst.get("matched_by") != "manual" else "확인 완료"), "success"
+
+    due = _d(inst["due_date"])
+    if due and due < today:
+        return f"지연 {(today - due).days}일", "error"
+    return "대기", "muted"
+
+
+def _tracked(documents: list[dict]) -> list[dict]:
+    """이행을 따라가야 하는 약정만. 해지·만료된 건 제외한다."""
+    return [d for d in documents
+            if d["derived"]["is_active"] or d["status"] == "EXPIRED"]
+
+
+def program_cards(documents: list[dict], programs: list[dict],
+                  today: date | None = None) -> list[dict]:
+    """이행 관리 첫 화면 — 모금 사업별 현황 카드.
+
+    지연 건수를 카드에 함께 담는다. 사업을 하나씩 열어보지 않고도
+    어디에 문제가 있는지 보이게 하려는 것이다.
+    """
+    today = today or date.today()
+    month_start = today.replace(day=1)
+    next_month = (month_start + timedelta(days=32)).replace(day=1)
+
+    stat: dict[str, dict] = {}
+    for doc in _tracked(documents):
+        pid = doc["donation"].get("program_id") or "_none"
+        s = stat.setdefault(pid, {
+            "donors": set(), "scheduled": 0, "confirmed": 0,
+            "overdue": 0, "longest_delay": 0, "waiting": 0,
+        })
+        s["donors"].add(doc["id"])
+        for inst in doc.get("installments", []):
+            due = _d(inst["due_date"])
+            if not due:
+                continue
+            if month_start <= due < next_month:
+                s["scheduled"] += 1
+            if inst.get("paid_date"):
+                paid = _d(inst["paid_date"])
+                if paid and month_start <= paid < next_month:
+                    s["confirmed"] += 1
+            elif due < today:
+                s["overdue"] += 1
+                s["longest_delay"] = max(s["longest_delay"], (today - due).days)
+            elif due <= today + timedelta(days=45):
+                s["waiting"] += 1
+
+    by_id = {p["id"]: p for p in programs}
+    cards = []
+    for pid, s in stat.items():
+        program = by_id.get(pid, {})
+        cards.append({
+            "program_id": pid,
+            "name": program.get("name") or "사업 미지정",
+            "archived": program.get("status") == "archived",
+            "donor_count": len(s["donors"]),
+            "scheduled": s["scheduled"],
+            "confirmed": s["confirmed"],
+            "overdue": s["overdue"],
+            "waiting": s["waiting"],
+            "longest_delay_days": s["longest_delay"],
+        })
+    # 지연이 많은 사업이 먼저. 손댈 곳부터 보이게 한다.
+    cards.sort(key=lambda c: (-c["overdue"], -c["scheduled"], c["name"]))
+    return cards
+
+
+def program_donors(documents: list[dict], program_id: str,
+                   today: date | None = None) -> list[dict]:
+    """한 사업에 참여한 기부자(약정) 목록."""
+    today = today or date.today()
+    out = []
+    for doc in _tracked(documents):
+        if (doc["donation"].get("program_id") or "_none") != program_id:
+            continue
+        installments = doc.get("installments", [])
+        overdue = [i for i in installments
+                   if not i.get("paid_date") and (_d(i["due_date"]) or today) < today]
+        paid = [i for i in installments if i.get("paid_date")]
+        upcoming = sorted(
+            (i["due_date"] for i in installments
+             if not i.get("paid_date") and (_d(i["due_date"]) or today) >= today))
+        out.append({
+            "document_id": doc["id"],
+            "donor": doc["donor"]["name"],
+            "type": doc["donation"]["type"],
+            "amount": doc["donation"]["amount"],
+            "frequency": doc["donation"]["frequency"],
+            "installments_total": len(installments),
+            "installments_paid": len(paid),
+            "overdue": len(overdue),
+            "longest_delay_days": max(
+                ((today - (_d(i["due_date"]) or today)).days for i in overdue), default=0),
+            "next_due": upcoming[0] if upcoming else None,
+        })
+    out.sort(key=lambda r: (-r["overdue"], r["donor"]))
+    return out
+
+
+def agreement_installments(documents: list[dict], document_id: str,
+                           today: date | None = None) -> dict:
+    """한 약정의 회차 전체. 드릴다운 마지막 단계."""
+    today = today or date.today()
+    doc = next((d for d in documents if d["id"] == document_id), None)
+    if not doc:
+        raise ValueError(f"약정을 찾을 수 없습니다: {document_id}")
+
+    rows_ = []
+    for inst in doc.get("installments", []):
+        status, tone = _installment_status(inst, today)
+        rows_.append({
+            "no": inst["no"],
+            "due_date": inst["due_date"],
+            "paid_date": inst.get("paid_date"),
+            "amount": inst["amount"],
+            "proof_kind": inst.get("proof_kind") or ("영수증" if inst.get("proof_id") else None),
+            "status": status,
+            "tone": tone,
+        })
+    return {
+        "document_id": doc["id"],
+        "donor": doc["donor"]["name"],
+        "program_id": doc["donation"].get("program_id"),
+        "program_name": doc["donation"].get("program_name"),
+        "type": doc["donation"]["type"],
+        "amount": doc["donation"]["amount"],
+        "frequency": doc["donation"]["frequency"],
+        "rows": rows_,
+    }
+
+
+def overdue_rows(documents: list[dict], today: date | None = None) -> list[dict]:
+    """지연된 회차만 사업을 가로질러 모아 본다.
+
+    드릴다운만 있으면 월말에 "이번 달 밀린 것 전부"를 보려고 사업을
+    하나씩 열어야 한다. 그 우회로를 없애려고 둔 화면이다.
+    """
+    today = today or date.today()
+    out = []
+    for doc in _tracked(documents):
+        for inst in doc.get("installments", []):
+            due = _d(inst["due_date"])
+            if inst.get("paid_date") or not due or due >= today:
+                continue
+            out.append({
+                "document_id": doc["id"],
+                "donor": doc["donor"]["name"],
+                "program_id": doc["donation"].get("program_id"),
+                "program_name": doc["donation"].get("program_name"),
+                "no": inst["no"],
+                "due_date": inst["due_date"],
+                "amount": inst["amount"],
+                "delay_days": (today - due).days,
+            })
+    out.sort(key=lambda r: -r["delay_days"])
+    return out
+
+
 def rows(documents: list[dict], today: date | None = None) -> list[dict]:
     """회차 단위 이행 목록.
 

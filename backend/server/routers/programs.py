@@ -28,6 +28,10 @@ class TagRequest(BaseModel):
     text: str
 
 
+class StatusRequest(BaseModel):
+    status: str  # active | archived
+
+
 @router.get("")
 async def list_programs(with_progress: bool = False):
     if not with_progress:
@@ -51,6 +55,25 @@ async def update_program(program_id: str, body: ProgramRequest):
         return {"program": svc.update(program_id, body.model_dump())}
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
+
+
+@router.put("/{program_id}/status")
+async def set_status(program_id: str, body: StatusRequest):
+    """모금 사업 보관/재개.
+
+    보관하면 개인용 웹 목록에서 빠져 기부자가 새로 선택할 수 없다.
+    이미 맺은 약정과 집계는 그대로 남는다.
+    """
+    try:
+        program = svc.set_status(program_id, body.status)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return {
+        "program": program,
+        "message": f"'{program['name']}' 사업을 "
+                   + ("보관했습니다. 기부자 화면에서 더 이상 보이지 않습니다."
+                      if body.status == svc.ARCHIVED else "다시 진행 중으로 되돌렸습니다."),
+    }
 
 
 @router.post("/parse-notice")

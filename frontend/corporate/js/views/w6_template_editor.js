@@ -1,27 +1,32 @@
-// W6 템플릿 편집 · 서명란 배치 — 추출 항목을 데이터 라벨로 배치하고 templateId를 확보한다
+// W6 계약서 서식 편집 — 어떤 항목을 받을지 정하고, 실제 PDF로 확인한 뒤 저장한다.
+//
+// 모두싸인 임베디드 편집기는 쓰지 않는다. 최종 계약서를 우리 서버가 직접 그리므로
+// 서명란 좌표를 모두싸인에서 다시 잡을 필요가 없다(같은 일을 두 번 하게 된다).
+// 서명자 이름·이메일도 여기서 받지 않는다. 기부자가 약정을 맺을 때 정해진다.
 
-import { api } from '../api.js';
-import { badge, esc, modal, toast } from '../ui.js';
+import { API_BASE, api } from '../api.js';
+import { badge, esc, toast } from '../ui.js';
 
-export const TITLE = '템플릿 편집 · 서명란 배치';
+export const TITLE = '계약서 서식 편집';
 export const SCREEN = 'W6';
+
+const TYPE_LABEL = {
+  text: '텍스트', number: '숫자', select: '선택', check: '체크',
+  textarea: '긴 텍스트', date: '날짜', sign: '서명',
+};
+const TYPES = ['text', 'number', 'select', 'check', 'textarea', 'date', 'sign'];
+const ASSIGNEES = ['기부자', '담당자', '입회인'];
 
 export async function render(root, ctx) {
   const { templateId } = ctx.params;
   const source = await loadSource(templateId);
 
-  // 배치 좌표는 캔버스 기준 백분율로 들고 있다가 저장 시 함께 보낸다.
-  // 기존 템플릿은 좌표가 없으므로 겹치지 않게 계단식 기본값을 준다.
-  let slot = 0;
-  const fields = source.fields.map((f, i) => {
-    const placed = f.placed ?? false;
-    const field = { ...f, key: f.key || `field_${i + 1}`, placed, x: f.x, y: f.y };
-    if (placed && (field.x == null || field.y == null)) {
-      Object.assign(field, defaultSpot(f.type, slot));
-      slot += 1;
-    }
-    return field;
-  });
+  const fields = source.fields.map((f, i) => ({
+    ...f,
+    key: f.key || `field_${i + 1}`,
+    assignee: f.assignee || '기부자',
+    type: f.type || 'text',
+  }));
 
   ctx.setTitle(source.name);
   ctx.setActions(`
@@ -31,158 +36,151 @@ export async function render(root, ctx) {
 
   root.innerHTML = `
     <div class="grid grid-3-2">
-      <div class="card" id="editor-card">
-        <div class="card-h"><h2 id="editor-title">문서 미리보기</h2><span class="spacer"></span>
-          <span class="muted" style="font-size:12px" id="editor-hint">항목을 끌어다 놓으세요</span></div>
-        <div class="card-b" id="editor-body">
-          <div class="canvas" id="canvas">
-            <div style="max-width:62%;display:flex;flex-direction:column;gap:9px;pointer-events:none">
-              <div class="ln w60" style="height:9px;background:var(--line-soft);border-radius:3px"></div>
-              <div class="ln" style="height:9px;background:var(--line-soft);border-radius:3px"></div>
-              <div class="ln w80" style="height:9px;background:var(--line-soft);border-radius:3px;width:80%"></div>
-              <div class="ln w40" style="height:9px;background:var(--line-soft);border-radius:3px;width:40%"></div>
-            </div>
+      <div class="card">
+        <div class="card-h"><h2>계약서 미리보기</h2><span class="spacer"></span>
+          <span class="muted" style="font-size:12px" id="preview-hint">
+            미리보기를 누르면 실제 계약서가 여기 표시됩니다</span></div>
+        <div class="card-b" id="preview-body">
+          <div class="dropzone" id="preview-empty" style="cursor:default">
+            <b>아직 미리보기를 만들지 않았습니다</b>
+            오른쪽에서 항목을 정한 뒤 상단 <b>미리보기</b>를 눌러주세요
           </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-h"><h2>템플릿 설정</h2><span class="spacer"></span>
-          <span class="muted" style="font-size:12px" id="placed-count"></span></div>
+        <div class="card-h"><h2>서식 설정</h2><span class="spacer"></span>
+          <span class="muted" style="font-size:12px" id="field-count"></span></div>
         <div class="card-b">
           <div class="field">
-            <label for="tpl-title">템플릿 제목</label>
-            <input id="tpl-title" value="${esc(source.name)}">
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="signer-name">서명 참여자 이름</label>
-              <input id="signer-name" placeholder="예: 문경민">
-            </div>
-            <div class="field">
-              <label for="signer-email">서명 참여자 이메일</label>
-              <input id="signer-email" type="email" placeholder="signer@example.com">
-            </div>
+            <label for="tpl-name">서식 이름</label>
+            <input id="tpl-name" value="${esc(source.name)}" placeholder="예: 정기기부 약정서">
           </div>
 
           <label style="font-size:12.5px;color:var(--ink-2);font-weight:600;display:block;margin:4px 0 8px">
-            배치할 항목 · 데이터 라벨
+            계약서에 넣을 항목
           </label>
-          <div class="flex-col" id="field-list" style="gap:7px;max-height:300px;overflow:auto"></div>
-          <div class="note" style="margin-top:14px" id="editor-note">
-            저장하면 모두싸인 임베디드 초안을 만들고, 받은 편집 화면을 왼쪽에 띄웁니다.
-            서명란 최종 배치는 그 화면에서 확정됩니다.
+          <div class="flex-col" id="field-list" style="gap:7px;max-height:360px;overflow:auto"></div>
+
+          <button class="btn sm" id="add-field" style="margin-top:10px;width:100%">+ 항목 추가</button>
+
+          <div class="note" style="margin-top:14px">
+            기부자가 개인용 웹에서 채울 항목입니다. 여기서 정한 그대로
+            챗봇이 물어보고, 계약서에도 같은 순서로 들어갑니다.
           </div>
         </div>
       </div>
     </div>`;
 
-  const canvas = root.querySelector('#canvas');
   const list = root.querySelector('#field-list');
+  const nameInput = root.querySelector('#tpl-name');
 
   function paint() {
-    // 캔버스에 배치된 항목
-    canvas.querySelectorAll('.placed-field').forEach((n) => n.remove());
-    fields.filter((f) => f.placed).forEach((f) => {
-      const chip = document.createElement('div');
-      chip.className = `placed-field ${f.type === 'sign' ? 'sign' : ''}`;
-      chip.textContent = f.label;
-      chip.style.left = `${f.x}%`;
-      chip.style.top = `${f.y}%`;
-      chip.dataset.key = f.key;
-      canvas.appendChild(chip);
-    });
-
-    // 오른쪽 목록 — 서명 요청 때 값이 치환될 데이터 라벨을 함께 보여준다.
-    list.innerHTML = fields.map((f) => `
-      <div class="field-pill ${f.placed ? 'placed' : ''}">
-        <div class="flex-col" style="gap:2px;min-width:0">
-          <span>${esc(f.label)}</span>
-          <span class="muted" style="font-size:11px;font-family:ui-monospace,monospace">
-            {{${esc(f.key)}}} · ${esc(f.assignee)}</span>
-        </div>
+    list.innerHTML = fields.map((f, i) => `
+      <div class="field-pill" data-i="${i}" style="align-items:flex-start;flex-wrap:wrap;gap:6px">
+        <input class="f-label" value="${esc(f.label || '')}" placeholder="항목 이름"
+               style="flex:1 1 100%;border:1px solid var(--line);border-radius:6px;padding:6px 9px">
+        <select class="f-type" style="border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-size:12px">
+          ${TYPES.map((t) => `<option value="${t}" ${f.type === t ? 'selected' : ''}>${TYPE_LABEL[t]}</option>`).join('')}
+        </select>
+        <select class="f-assignee" style="border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-size:12px">
+          ${ASSIGNEES.map((a) => `<option value="${a}" ${f.assignee === a ? 'selected' : ''}>${a}</option>`).join('')}
+        </select>
         <span class="spacer"></span>
-        ${f.placed ? badge('배치됨', 'success') : badge('미배치', 'muted')}
-        <button class="btn sm" data-toggle="${esc(f.key)}">${f.placed ? '해제' : '배치'}</button>
+        <button class="btn sm ghost" data-move="${i}" title="위로">↑</button>
+        <button class="btn sm ghost" data-remove="${i}" title="삭제">✕</button>
       </div>`).join('');
 
-    root.querySelector('#placed-count').textContent =
-      `${fields.filter((f) => f.placed).length} / ${fields.length} 배치됨`;
+    const donor = fields.filter((f) => f.assignee === '기부자' && f.type !== 'sign').length;
+    root.querySelector('#field-count').textContent = `${fields.length}개 · 기부자 입력 ${donor}개`;
   }
 
-  list.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-toggle]');
-    if (!btn) return;
-    const f = fields.find((x) => x.key === btn.dataset.toggle);
-    if (f.placed) {
-      f.placed = false;
-    } else {
-      f.placed = true;
-      Object.assign(f, defaultSpot(f.type, fields.filter((x) => x.placed).length - 1));
-    }
+  list.addEventListener('input', (e) => {
+    const row = e.target.closest('[data-i]');
+    if (row && e.target.matches('.f-label')) fields[Number(row.dataset.i)].label = e.target.value;
+  });
+
+  list.addEventListener('change', (e) => {
+    const row = e.target.closest('[data-i]');
+    if (!row) return;
+    const f = fields[Number(row.dataset.i)];
+    if (e.target.matches('.f-type')) f.type = e.target.value;
+    if (e.target.matches('.f-assignee')) f.assignee = e.target.value;
     paint();
   });
 
-  // 캔버스 드래그
-  let dragging = null;
-  canvas.addEventListener('pointerdown', (e) => {
-    const chip = e.target.closest('.placed-field');
-    if (!chip) return;
-    dragging = { chip, field: fields.find((f) => f.key === chip.dataset.key) };
-    chip.setPointerCapture(e.pointerId);
+  list.addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-remove]');
+    if (rm) {
+      fields.splice(Number(rm.dataset.remove), 1);
+      return paint();
+    }
+    const up = e.target.closest('[data-move]');
+    if (up) {
+      const i = Number(up.dataset.move);
+      if (i > 0) [fields[i - 1], fields[i]] = [fields[i], fields[i - 1]];
+      paint();
+    }
   });
-  canvas.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    const box = canvas.getBoundingClientRect();
-    const x = ((e.clientX - box.left) / box.width) * 100;
-    const y = ((e.clientY - box.top) / box.height) * 100;
-    dragging.field.x = Math.min(88, Math.max(0, x - 4));
-    dragging.field.y = Math.min(92, Math.max(0, y - 2));
-    dragging.chip.style.left = `${dragging.field.x}%`;
-    dragging.chip.style.top = `${dragging.field.y}%`;
-  });
-  canvas.addEventListener('pointerup', () => { dragging = null; });
 
-  ctx.actionsEl.querySelector('#preview').onclick = () => {
-    modal({
-      title: `${source.name} — 미리보기`,
-      body: `
-        <p class="muted" style="margin-bottom:12px">기부자가 서명할 때 보게 될 항목 순서입니다.</p>
-        <table><thead><tr><th>항목</th><th>유형</th><th>작성자</th><th>배치</th></tr></thead>
-        <tbody>${fields.map((f) => `
-          <tr><td>${esc(f.label)}</td><td class="muted">${esc(f.type)}</td>
-              <td class="muted">${esc(f.assignee)}</td>
-              <td>${f.placed ? badge('배치됨', 'success') : badge('미배치', 'muted')}</td></tr>`).join('')}
-        </tbody></table>`,
-      footer: '<button class="btn" data-close>닫기</button>',
-    });
+  root.querySelector('#add-field').onclick = () => {
+    fields.push({ key: `field_${Date.now()}`, label: '', type: 'text', assignee: '기부자' });
+    paint();
+  };
+
+  // ── 미리보기: 모두싸인 편집기가 아니라 우리가 만드는 진짜 PDF ──
+  ctx.actionsEl.querySelector('#preview').onclick = async (e) => {
+    const btn = e.currentTarget;
+    const usable = fields.filter((f) => (f.label || '').trim());
+    if (!usable.length) return toast('항목 이름을 하나 이상 입력해주세요.', 'error');
+
+    btn.disabled = true;
+    btn.textContent = '만드는 중…';
+    try {
+      const res = await fetch(`${API_BASE}/api/templates/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nameInput.value.trim(), fields: usable }),
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || `${res.status}`);
+
+      const url = URL.createObjectURL(await res.blob());
+      root.querySelector('#preview-body').innerHTML = `
+        <iframe src="${url}" title="계약서 미리보기"
+                style="width:100%;height:560px;border:1px solid var(--line);border-radius:6px"></iframe>`;
+      root.querySelector('#preview-hint').textContent = '예시 값으로 만든 실제 계약서입니다';
+      setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '미리보기';
+    }
   };
 
   ctx.actionsEl.querySelector('#save').onclick = async (e) => {
     const btn = e.currentTarget;
-    const placed = fields.filter((f) => f.placed);
-    if (!placed.length) return toast('배치된 항목이 없습니다.', 'error');
-    if (!placed.some((f) => f.type === 'sign')) return toast('서명란을 최소 1개 배치해주세요.', 'error');
+    const name = nameInput.value.trim();
+    if (!name) return toast('서식 이름을 입력해주세요.', 'error');
 
-    const title = root.querySelector('#tpl-title').value.trim();
-    if (!title) return toast('템플릿 제목을 입력해주세요.', 'error');
-
-    const signerName = root.querySelector('#signer-name').value.trim();
-    const signerEmail = root.querySelector('#signer-email').value.trim();
+    const usable = fields.filter((f) => (f.label || '').trim());
+    if (!usable.length) return toast('항목을 하나 이상 입력해주세요.', 'error');
+    if (!usable.some((f) => f.assignee === '기부자' && f.type !== 'sign')) {
+      return toast('기부자가 채울 항목이 최소 1개 필요합니다.', 'error');
+    }
 
     btn.disabled = true;
     btn.textContent = '저장 중…';
     try {
       const res = await api.post('/api/templates/save', {
-        name: title,
-        fields: placed,
+        name,
+        fields: usable,
         source_id: source.source_id || null,
-        participants: signerName
-          ? [{ role: '기부자', name: signerName, email: signerEmail }]
-          : [],
+        template_id: source.template_id || null,
       });
       toast(res.message);
-      showEmbeddedEditor(root, res.template, res.needs_link);
+      // 저장하자마자 화면을 옮기면 안내가 묻힌다. 결과를 남겨두고 다음 행동을 고르게 한다.
+      showSaved(root, res.template, usable, ctx);
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -194,75 +192,42 @@ export async function render(root, ctx) {
   paint();
 }
 
-// W5에서 넘어온 항목은 일단 전부 배치해 두고 담당자가 위치만 조정하게 한다.
-// 빈 캔버스에서 11개를 하나씩 올리게 하면 실제로 아무도 안 쓴다.
-function fromExtraction(fields) {
-  return (fields || []).map((f) => ({ ...f, placed: true }));
-}
 
-// 저장 후 모두싸인이 준 임베디드 편집 화면으로 왼쪽 패널을 교체한다.
-// embedded_url이 없으면(데모 모드) 배치 캔버스를 그대로 두고 안내만 바꾼다.
-function showEmbeddedEditor(root, template, needsLink) {
-  const note = root.querySelector('#editor-note');
-
-  if (!template.embedded_url) {
-    note.innerHTML = `저장했습니다. templateId <code>${esc(template.id)}</code><br>
-      모두싸인 API 키를 넣으면 이 자리에 실제 서명란 배치 화면이 열립니다.`;
-    return;
-  }
-
-  root.querySelector('#editor-title').textContent = '모두싸인 서명란 배치';
-  root.querySelector('#editor-hint').textContent =
-    template.expiry ? `초안 만료 ${template.expiry.slice(11, 16)}` : '초안 편집 중';
-  root.querySelector('#editor-body').innerHTML = `
-    <iframe src="${esc(template.embedded_url)}" title="모두싸인 템플릿 편집기"
-            referrerpolicy="no-referrer"
-            style="width:100%;height:520px;border:1px solid var(--line);border-radius:6px;background:#fff"></iframe>`;
-
-  if (!needsLink) {
-    note.innerHTML = `초안 ID <code>${esc(template.id)}</code>`;
-    return;
-  }
-
-  // 모두싸인은 편집기 저장 완료를 알려주지 않는다. 담당자가 눌러주면 그때 찾는다.
-  note.innerHTML = `
-    <div class="flex">
-      <div class="flex-col" style="gap:2px">
-        <span class="strong" style="color:var(--ink)">배치를 마치면 눌러주세요</span>
-        <span>편집기에서 저장한 뒤 눌러야 templateId가 연결됩니다.</span>
+// 저장 결과를 화면에 남긴다. 토스트만 띄우면 저장됐는지 확신이 안 선다.
+function showSaved(root, template, fields, ctx) {
+  const donor = fields.filter((f) => f.assignee === '기부자' && f.type !== 'sign').length;
+  root.querySelector('#preview-hint').textContent = '저장 완료';
+  root.querySelector('#preview-body').innerHTML = `
+    <div class="card" style="border-color:#CFE0D6;background:#F6FBF8;box-shadow:none">
+      <div class="card-b">
+        <div class="flex" style="margin-bottom:10px">
+          <span class="strong" style="font-size:16px">저장되었습니다</span>
+          ${badge('서식 등록됨', 'success')}
+        </div>
+        <table style="margin-bottom:14px"><tbody>
+          <tr><td class="muted" style="width:110px">서식 이름</td>
+              <td class="strong">${esc(template.name)}</td></tr>
+          <tr><td class="muted">서식 ID</td>
+              <td style="font-family:ui-monospace,monospace;font-size:12.5px">${esc(template.id)}</td></tr>
+          <tr><td class="muted">항목</td>
+              <td>${fields.length}개 · 기부자가 채울 항목 ${donor}개</td></tr>
+        </tbody></table>
+        <div class="note" style="margin-bottom:14px">
+          이제 <b>모금 사업 등록</b>에서 이 서식을 연결하면, 개인용 웹 챗봇이
+          여기 정한 항목을 그대로 물어봅니다.
+        </div>
+        <div class="flex">
+          <button class="btn" id="keep-editing">계속 편집</button>
+          <span class="spacer"></span>
+          <a class="btn" href="#/templates/new">서식 목록</a>
+          <a class="btn primary" href="#/programs/new">모금 사업에 연결하기</a>
+        </div>
       </div>
-      <span class="spacer"></span>
-      <button class="btn primary" id="link-template">템플릿 연결</button>
     </div>`;
 
-  note.querySelector('#link-template').onclick = async (e) => {
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    btn.textContent = '찾는 중…';
-    try {
-      const res = await api.post(`/api/templates/${encodeURIComponent(template.id)}/link`);
-      toast(res.message, res.linked ? '' : 'error');
-      if (res.linked) {
-        note.innerHTML = `연결 완료 · templateId <code>${esc(res.template_id)}</code><br>
-          이제 모금 사업에서 이 템플릿을 고를 수 있습니다.`;
-      } else {
-        btn.disabled = false;
-        btn.textContent = '다시 확인';
-      }
-    } catch (err) {
-      toast(err.message, 'error');
-      btn.disabled = false;
-      btn.textContent = '템플릿 연결';
-    }
-  };
+  root.querySelector('#keep-editing').onclick = () => ctx.reload();
 }
 
-// 이미 놓인 항목과 겹치지 않게 계단식으로 초기 위치를 잡는다.
-function defaultSpot(type, index) {
-  // 서명란은 문서 아래쪽에 세로로 쌓는다.
-  if (type === 'sign') return { x: 56, y: 62 + (index % 3) * 11 };
-  return { x: 8 + (index % 2) * 46, y: 8 + Math.floor(index / 2) * 11 };
-}
 
 async function loadSource(id) {
   // W5에서 넘어온 경우 sessionStorage에 추출 결과가 들어 있다.
@@ -271,21 +236,22 @@ async function loadSource(id) {
     const data = JSON.parse(cached);
     if (data.id === id) {
       sessionStorage.removeItem('qsight:extraction');
-      return { name: data.form_title, fields: fromExtraction(data.fields), source_id: data.id };
+      return { name: data.form_title, fields: data.fields, source_id: data.id, template_id: null };
     }
   }
 
   if (id.startsWith('ext_')) {
     const data = await api.get(`/api/templates/extractions/${encodeURIComponent(id)}`);
-    return { name: data.form_title, fields: fromExtraction(data.fields), source_id: data.id };
+    return { name: data.form_title, fields: data.fields, source_id: data.id, template_id: null };
   }
 
   const { rows } = await api.get('/api/templates');
   const template = rows.find((t) => t.id === id);
-  if (!template) throw new Error(`템플릿을 찾을 수 없습니다: ${id}`);
+  if (!template) throw new Error(`서식을 찾을 수 없습니다: ${id}`);
   return {
     name: template.name,
-    fields: (template.fields || []).map((f) => ({ ...f, placed: true })),
-    source_id: null,
+    fields: template.fields || [],
+    source_id: template.source_id || null,
+    template_id: template.id,
   };
 }

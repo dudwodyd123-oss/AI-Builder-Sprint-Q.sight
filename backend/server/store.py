@@ -73,5 +73,24 @@ def find(name: str, item_id: str, key: str = "id") -> dict | None:
     return None
 
 
+def remove(name: str, item_id: str, key: str = "id") -> bool:
+    """항목을 지운다. 지울 게 있었으면 True."""
+    items = read_list(name)
+    kept = [i for i in items if i.get(key) != item_id]
+    if len(kept) == len(items):
+        return False
+    write(name, kept)
+    return True
+
+
 def next_id(name: str, prefix: str) -> str:
-    return f"{prefix}_{len(read_list(name)) + 1:04d}"
+    """겹치지 않는 새 id. 중간을 지워도 기존 id와 부딪히지 않게 최댓값 기준으로 센다."""
+    rows = read_list(name)
+    used = set()
+    for row in rows:
+        raw = str(row.get("id", ""))
+        if raw.startswith(f"{prefix}_"):
+            tail = raw[len(prefix) + 1:]
+            if tail.isdigit():
+                used.add(int(tail))
+    return f"{prefix}_{(max(used) + 1) if used else 1:04d}"

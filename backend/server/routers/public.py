@@ -45,8 +45,13 @@ async def list_programs():
     docs = await donations.load_documents()
     progress = analytics.build(docs, programs.list_programs())["program_progress"]
 
+    # 보관된 사업은 기부자가 새로 선택할 수 없어야 하므로 목록에서 뺀다.
+    live_ids = {p["id"] for p in programs.list_programs(include_archived=False)}
+
     rows = []
     for p in programs.with_progress(progress):
+        if p["id"] not in live_ids:
+            continue
         try:
             ready = svc.contract_form(p["id"])["ready"]
         except ValueError:

@@ -1,7 +1,7 @@
 // W7 모금 사업 등록 — 공고문 자동 채우기 + 추천 태그
 
 import { api } from '../api.js';
-import { esc, num, progressBar, toast, won } from '../ui.js';
+import { badge, esc, num, progressBar, toast, won } from '../ui.js';
 
 export const TITLE = '모금 사업 등록';
 export const SCREEN = 'W7';
@@ -94,7 +94,9 @@ export async function render(root, ctx) {
 
       <div class="card">
         <div class="card-h"><h2>등록된 모금 사업</h2><span class="spacer"></span>
-          <span class="muted" style="font-size:12px">${programs.rows.length}개</span></div>
+          <span class="muted" style="font-size:12px">
+            진행 ${programs.rows.filter((p) => p.status !== 'archived').length} ·
+            보관 ${programs.rows.filter((p) => p.status === 'archived').length}</span></div>
         <div class="card-b flex-col" style="gap:16px" id="program-list">
           ${programs.rows.map(programCard).join('')}
         </div>
@@ -163,6 +165,22 @@ export async function render(root, ctx) {
 
   root.querySelector('#reset').onclick = () => { form.reset(); tags = []; paintTags(); };
 
+  // 사업 보관 / 재개 — 보관하면 기부자 화면 목록에서 빠진다.
+  root.querySelector('#program-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-archive]');
+    if (!btn) return;
+    btn.disabled = true;
+    try {
+      const res = await api.put(`/api/programs/${encodeURIComponent(btn.dataset.archive)}/status`,
+                                { status: btn.dataset.next });
+      toast(res.message);
+      ctx.reload();
+    } catch (err) {
+      toast(err.message, 'error');
+      btn.disabled = false;
+    }
+  });
+
   // 공고문 자동 채우기
   const noticeInput = ctx.actionsEl.querySelector('#notice');
   ctx.actionsEl.querySelector('#autofill').onclick = () => noticeInput.click();
@@ -198,12 +216,18 @@ export async function render(root, ctx) {
 }
 
 function programCard(p) {
+  const archived = p.status === 'archived';
   return `
-    <div>
+    <div style="${archived ? 'opacity:.62' : ''}">
       <div class="flex">
         <span class="strong">${esc(p.name)}</span>
+        ${archived ? badge('보관됨', 'muted') : ''}
         <span class="spacer"></span>
         <span class="muted" style="font-size:12px">${num(p.donor_count)}명 참여</span>
+        <button class="btn sm" data-archive="${esc(p.id)}"
+                data-next="${archived ? 'active' : 'archived'}">
+          ${archived ? '다시 진행' : '보관'}
+        </button>
       </div>
       <div class="flex" style="margin:7px 0 5px">
         <div style="flex:1">${progressBar(p.rate, p.rate < 40)}</div>

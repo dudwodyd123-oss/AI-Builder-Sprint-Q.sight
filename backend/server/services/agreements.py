@@ -131,6 +131,10 @@ async def create(program_id: str, values: dict, signer: dict) -> dict:
     program = get_program(program_id)
     if not program:
         raise ValueError(f"모금 사업을 찾을 수 없습니다: {program_id}")
+    # 대화 도중에 기관이 사업을 보관했을 수 있다. 목록에서 빠진 뒤에도
+    # 진행 중이던 세션이 약정을 맺어버리는 걸 막는다.
+    if program.get("status") == "archived":
+        raise ValueError(f"'{program.get('name')}' 사업은 모금이 종료되었습니다.")
     if not (signer.get("name") or "").strip():
         raise ValueError("서명자 이름이 필요합니다.")
     if not (signer.get("email") or "").strip():

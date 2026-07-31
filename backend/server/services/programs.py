@@ -14,13 +14,23 @@ from .parsing import suggest_tags
 
 REQUIRED = ["name", "goal_amount", "start_date", "end_date"]
 
+# 사업 상태. archived는 모금이 끝나 보관된 사업으로, 개인용 웹 목록에서 빠진다.
+# 기존 약정과 집계는 그대로 유지되므로 대시보드·리포트에는 계속 잡힌다.
+ACTIVE = "active"
+ARCHIVED = "archived"
 
-def list_programs() -> list[dict]:
+
+def list_programs(include_archived: bool = True) -> list[dict]:
     rows = store.read_list("programs")
     if not rows:
         rows = [dict(p) for p in SEED_PROGRAMS]
         store.write("programs", rows)
-    return rows
+    # 예전에 만든 사업에는 status가 없다. 없으면 진행 중으로 본다.
+    for r in rows:
+        r.setdefault("status", ACTIVE)
+    if include_archived:
+        return rows
+    return [r for r in rows if r.get("status") != ARCHIVED]
 
 
 def get(program_id: str) -> dict | None:
@@ -46,6 +56,7 @@ def create(payload: dict) -> dict:
         "tags": payload.get("tags") or suggest_tags(
             f"{payload['name']} {payload.get('description', '')}"
         ),
+        "status": ACTIVE,
         "created_at": datetime.now().isoformat(timespec="seconds"),
     }
     store.upsert("programs", program)
@@ -59,6 +70,27 @@ def update(program_id: str, payload: dict) -> dict:
     merged = {**existing, **payload, "id": program_id}
     store.upsert("programs", merged)
     return merged
+
+
+def set_status(program_id: str, status: str) -> dict:
+    """사업을 보관하거나 다시 진행 중으로 되돌린다.
+
+    보관해도 이미 맺은 약정과 집계는 그대로 남는다. 개인용 웹 목록에서만
+    빠져서 기부자가 새로 선택할 수 없게 된다.
+    """
+    if status not in (ACTIVE, ARCHIVED):
+        raise ValueError(f"알 수 없는 상태입니다: {status}")
+
+    program = get(program_id)
+    if not program:
+        raise ValueError(f"모금 사업을 찾을 수 없습니다: {program_id}")
+
+    program["status"] = status
+    program["archived_at"] = (
+        datetime.now().isoformat(timespec="seconds") if status == ARCHIVED else None
+    )
+    store.upsert("programs", program)
+    return program
 
 
 def with_progress(progress_rows: list[dict]) -> list[dict]:

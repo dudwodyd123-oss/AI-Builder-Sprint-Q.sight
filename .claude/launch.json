@@ -1,0 +1,27 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "qsight",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m", "uvicorn", "server.main:app",
+        "--port", "8080",
+        "--app-dir", "backend",
+        "--reload", "--reload-dir", "backend"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "qsight-8090",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m", "uvicorn", "server.main:app",
+        "--port", "8090",
+        "--app-dir", "backend",
+        "--reload", "--reload-dir", "backend"
+      ],
+      "port": 8090
+    }
+  ]
+}

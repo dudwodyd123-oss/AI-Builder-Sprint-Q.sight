@@ -50,23 +50,46 @@ export async function render(root, ctx) {
     <div id="result"></div>
 
     <div class="card">
-      <div class="card-h"><h2>등록된 템플릿</h2><span class="spacer"></span>
+      <div class="card-h"><h2>등록된 계약서 서식</h2><span class="spacer"></span>
         <span class="muted" style="font-size:12px">${templates.rows.length}개</span></div>
       <div class="card-b">
         <table>
-          <thead><tr><th>템플릿</th><th>templateId</th><th class="num">항목</th><th style="width:110px"></th></tr></thead>
-          <tbody>
+          <thead><tr><th>서식</th><th>ID</th><th class="num">항목</th><th style="width:160px"></th></tr></thead>
+          <tbody id="template-rows">
             ${templates.rows.map((t) => `
-              <tr>
-                <td class="strong">${esc(t.name)}</td>
+              <tr data-id="${esc(t.id)}">
+                <td class="strong">${esc(t.name)}
+                  ${t.origin === 'modusign' ? badge('모두싸인', 'muted') : ''}</td>
                 <td class="muted" style="font-family:ui-monospace,monospace;font-size:12px">${esc(t.id)}</td>
                 <td class="num muted">${(t.fields || []).length}개</td>
-                <td class="right"><a class="btn sm" href="#/templates/${encodeURIComponent(t.id)}/edit">편집</a></td>
+                <td class="right nowrap">
+                  <a class="btn sm" href="#/templates/${encodeURIComponent(t.id)}/edit">편집</a>
+                  ${t.deletable
+                    ? `<button class="btn sm ghost" data-delete="${esc(t.id)}"
+                               data-name="${esc(t.name)}">삭제</button>`
+                    : ''}
+                </td>
               </tr>`).join('')}
           </tbody>
         </table>
       </div>
     </div>`;
+
+  root.querySelector('#template-rows').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-delete]');
+    if (!btn) return;
+    if (!confirm(`'${btn.dataset.name}' 서식을 삭제할까요?\n이 서식으로 맺은 기존 약정은 그대로 남습니다.`)) return;
+
+    btn.disabled = true;
+    try {
+      const res = await api.del(`/api/templates/${encodeURIComponent(btn.dataset.delete)}`);
+      toast(res.message);
+      ctx.reload();
+    } catch (err) {
+      toast(err.message, 'error');
+      btn.disabled = false;
+    }
+  });
 
   const zone = root.querySelector('#zone');
   const input = root.querySelector('#file');

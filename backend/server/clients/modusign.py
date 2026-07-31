@@ -46,19 +46,10 @@ _ENDPOINTS = {
     "templates": "/templates",                                   # 200 확인
     "template": "/templates/{template_id}",                      # 403(존재)
     "webhooks": "/webhooks",                                     # 200 확인
-    "embedded_drafts": "/embedded-drafts",                       # 201 확인
 
     # ── 미검증 (POST 전용이라 GET으로 확인 불가) ────────
     "remind": "/documents/{document_id}/participants/{participant_id}/remind",
-    # 공식 문서에 있는 경로. 템플릿으로 임베디드 초안을 만든다.
-    "embedded_drafts_with_template": "/embedded-drafts/create-with-template",
 }
-
-# embeddedUrl에 붙이는 모드 파라미터.
-# 공식 문서가 정의한 값은 preview 하나뿐이다(내용만 보여주고 서명 요청은 막는 모드).
-# 'create-template'은 팀에서 임의로 만든 값이라 아무 효과가 없어 쓰지 않는다.
-# 일반 편집 화면으로 열려면 빈 문자열로 둔다.
-EMBEDDED_EDITOR_MODE = ""
 
 # 감사 추적 인증서 전용 API는 존재하지 않는다.
 #   /documents/{id}/audit-trail 을 포함해 audit-trails · certificate · trail ·
@@ -309,76 +300,6 @@ class ModusignClient:
             for r in rows
         ]
 
-    async def create_embedded_template(
-        self, name: str, fields: list[dict], participants: list[dict] | None = None
-    ) -> dict:
-        """W6 템플릿 편집 · 서명란 배치.
-
-        모두싸인 임베디드 초안 생성 API가 편집 UI URL(embeddedUrl)을 돌려주고,
-        담당자가 그 화면에서 서명란을 배치한 뒤 templateId가 확정된다.
-        embeddedUrl에 mode=create-template을 붙여야 템플릿 생성 모드로 열린다.
-        """
-        if self.mock:
-            template_id = f"tpl_{abs(hash(name)) % 10000:04d}"
-            saved = {
-                "id": template_id,
-                "name": name,
-                "updated_at": date.today().isoformat(),
-                "fields": fields,
-                "embedded_url": None,
-                "mock": True,
-            }
-            store.upsert("templates", saved)
-            return saved
-
-        # 실계정 201 응답으로 확인한 형태(2026-07-30):
-        #   {"id": "01KY...", "expiry": "...Z", "embeddedUrl": "https://app.modusign.co.kr/
-        #    embedded-draft/{id}?at=<JWT>&rt=<JWT>", "brandId": null}
-        #   - title은 최상위 필수 필드. document 래퍼는 DTO에 없다.
-        #   - participantMappings는 없어도 201이 난다.
-        #   - id는 '초안 ID'이지 templateId가 아니다. templateId는 담당자가 편집기에서
-        #     저장한 뒤 link_template()으로 따로 찾아내야 한다.
-        payload = await self._request(
-            "POST",
-            _ENDPOINTS["embedded_drafts"],
-            json={
-                "title": name,
-                "participantMappings": _participant_mappings(fields, participants),
-                "metadatas": [{"key": "source", "value": "qsight"}],
-            },
-        )
-
-        embedded_url = payload.get("embeddedUrl")
-        if embedded_url and EMBEDDED_EDITOR_MODE:
-            sep = "&" if "?" in embedded_url else "?"
-            embedded_url = f"{embedded_url}{sep}mode={EMBEDDED_EDITOR_MODE}"
-
-        return {
-            "id": payload.get("id"),
-            "name": name,
-            "fields": fields,
-            "embedded_url": embedded_url,   # JWT 포함 — 저장하거나 로그에 남기지 말 것
-            "expiry": payload.get("expiry"),
-            "is_draft": True,
-        }
-
-    async def find_new_template(self, known_ids: list[str]) -> dict | None:
-        """임베디드 편집기에서 저장된 템플릿을 찾아낸다.
-
-        모두싸인 웹훅은 문서 이벤트(document_started, document_all_signed 등)만
-        제공하고 '템플릿이 저장됨' 이벤트는 없다. 그래서 초안을 만들기 전 템플릿
-        목록을 기억해 두었다가, 담당자가 저장한 뒤 목록을 다시 읽어 새로 생긴
-        것을 찾는 방식으로 templateId를 회수한다.
-        """
-        templates = await self.list_templates()
-        known = set(known_ids or [])
-        fresh = [t for t in templates if t.get("id") not in known]
-        if not fresh:
-            return None
-        # 최근 수정된 것이 방금 저장한 템플릿일 가능성이 높다.
-        fresh.sort(key=lambda t: t.get("updated_at") or "", reverse=True)
-        return fresh[0]
-
     async def request_signature(
         self,
         title: str,
@@ -545,37 +466,6 @@ def _normalize_fields(raw: dict) -> list[dict]:
     return fields
 
 
-def data_label(key: str) -> str:
-    """서명 요청 시 값 치환에 쓰이는 데이터 라벨 형식."""
-    return "{{" + str(key) + "}}"
-
-
-def _participant_mappings(fields: list[dict], participants: list[dict] | None = None) -> list[dict]:
-    """배치한 항목을 역할별로 묶어 모두싸인 participantMappings로 변환한다.
-
-    participants로 역할별 서명자(이름·이메일)를 넘기면 함께 채운다.
-    """
-    by_role = {p.get("role"): p for p in (participants or []) if p.get("role")}
-
-    roles: dict[str, list[dict]] = {}
-    for f in fields:
-        roles.setdefault(f.get("assignee", "기부자"), []).append({
-            "dataLabel": data_label(f["key"]),
-            "name": f.get("label", f["key"]),
-            "type": {"sign": "SIGN", "check": "CHECKBOX", "number": "NUMBER"}.get(f.get("type"), "TEXT"),
-            "required": f.get("type") != "check",
-        })
-
-    out = []
-    for role, fs in roles.items():
-        mapping = {"role": role, "participantFields": fs}
-        signer = by_role.get(role)
-        if signer and signer.get("name"):
-            mapping["name"] = signer["name"]
-            if signer.get("email"):
-                mapping["signingMethod"] = {"type": "EMAIL", "value": signer["email"]}
-        out.append(mapping)
-    return out
 
 
 # 앱 전역에서 재사용하는 단일 인스턴스

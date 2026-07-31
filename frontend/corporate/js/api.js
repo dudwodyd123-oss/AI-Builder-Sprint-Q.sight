@@ -31,6 +31,8 @@ export const api = {
       body: JSON.stringify(body ?? {}),
     }).then(handle),
 
+  del: (path) => fetch(`${API_BASE}${path}`, { method: 'DELETE' }).then(handle),
+
   upload: (path, file, fields = {}) => {
     const fd = new FormData();
     fd.append('file', file);

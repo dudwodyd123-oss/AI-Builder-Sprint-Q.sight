@@ -82,7 +82,7 @@ function rowHtml(r) {
     <tr>
       <td class="strong">${esc(r.label)}</td>
       <td class="muted">${esc(r.program_name || '—')}</td>
-      <td class="muted">${esc(r.due_date.slice(5))}</td>
+      <td class="muted nowrap">${esc(r.due_date)}</td>
       <td class="num">${r.amount ? won(r.amount) : '<span class="muted">—</span>'}</td>
       <td class="muted">${esc(r.proof_kind || '—')}</td>
       <td>${badge(r.status, r.tone)}</td>
@@ -96,7 +96,7 @@ function candidateHtml(c, i, checked) {
            data-search="${esc(`${c.donor} ${c.program_name || ''}`)}">
       <input type="radio" name="cand" value="${i}" ${checked ? 'checked' : ''}>
       <span>${esc(c.donor)} · ${c.no}회차</span>
-      <span class="t">예정 ${esc(c.due_date.slice(5))}
+      <span class="t">예정 ${esc(c.due_date)}
         · ${c.amount ? won(c.amount) : '금액 없음'}${c.status ? ` · ${esc(c.status)}` : ''}</span>
     </label>`;
 }

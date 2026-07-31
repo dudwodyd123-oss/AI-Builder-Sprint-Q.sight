@@ -136,7 +136,7 @@ function rowHtml(r) {
       <td class="muted">${esc(r.program_name || '—')}</td>
       <td>${esc(r.type)}</td>
       <td class="num">${amount}</td>
-      <td class="muted">${esc(r.next_due ? r.next_due.slice(5) : '—')}</td>
+      <td class="muted nowrap">${esc(r.next_due || '—')}</td>
       <td>${badge(r.status, r.tone)}</td>
     </tr>`;
 }

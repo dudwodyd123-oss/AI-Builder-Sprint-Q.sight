@@ -22,7 +22,12 @@ export async function render(root, ctx) {
     ? `${won(donation.amount)}${donation.frequency === '월' ? ' / 월' : donation.frequency === '연' ? ' / 년' : ''}`
     : '금액 없음(봉사)';
 
-  ctx.setTitle(`${doc.donor.masked_name} · ${donation.type} ${amountLine}`);
+  // 서명이 끝나야 약정서·감사 추적 PDF가 생긴다. 없으면 버튼을 눌러도 오류만 나므로 잠근다.
+  const ready = (key) => (data.proof_pack.items.find((it) => it.key === key) || {}).available;
+  const agreementReady = ready('agreement');
+  const auditReady = ready('audit_trail');
+
+  ctx.setTitle(`${doc.donor.name} · ${donation.type} ${amountLine}`);
   ctx.setActions(`
     <a class="btn" href="#/donations">목록</a>
     <button class="btn" id="refresh">실시간 상태 조회</button>
@@ -50,7 +55,7 @@ export async function render(root, ctx) {
           <div class="timeline">
             ${data.history.length ? data.history.map((h) => `
               <div class="row">
-                <span class="d">${esc((h.date || '').slice(5))}</span>
+                <span class="d">${esc((h.date || '').slice(5))}${h.time ? ` ${esc(h.time)}` : ''}</span>
                 <span>${esc(h.event)}</span>
                 ${badge(h.tag || '기록', TAG_TONE[h.tag] || 'muted')}
               </div>`).join('') : '<div class="empty">이력이 없습니다</div>'}
@@ -60,25 +65,54 @@ export async function render(root, ctx) {
 
       <div class="card">
         <div class="card-h"><h2>약정 문서</h2><span class="spacer"></span>
-          <span class="muted" style="font-size:12px">${esc(doc.title)}</span></div>
+          ${badge(d.status_label, d.tone)}</div>
         <div class="card-b">
-          <div class="doc-preview">
-            <div class="ln w60"></div><div class="ln w90"></div><div class="ln w80"></div>
-            <div class="ln w40"></div><div class="ln w90"></div><div class="ln w60"></div>
-            <div class="sign-slot">서명 · 감사 추적</div>
+          <div class="doc-preview" style="min-height:auto;gap:0">
+            <div class="strong" style="font-size:14px;margin-bottom:12px">${esc(doc.title)}</div>
+            <table>
+              <tbody>
+                <tr><td class="muted" style="width:88px">기부자</td>
+                    <td>${esc(doc.donor.name)}</td></tr>
+                <tr><td class="muted">요청일</td>
+                    <td class="muted">${esc(doc.requested_at || '—')}</td></tr>
+                <tr><td class="muted">서명 완료</td>
+                    <td>${doc.completed_at
+                          ? esc(doc.completed_at)
+                          : '<span class="muted">아직 서명 전</span>'}</td></tr>
+              </tbody>
+            </table>
+            <div class="flex-col" style="gap:6px;margin-top:12px">
+              ${doc.participants.map((p) => `
+                <div class="flex" style="font-size:12.5px">
+                  <span>${esc(p.name || '참여자')}</span>
+                  <span class="muted"> · ${esc(p.role || '기부자')}</span>
+                  <span class="spacer"></span>
+                  ${p.signed_at
+                    ? badge(`서명 ${esc(p.signed_at.slice(0, 10))}`, 'success')
+                    : badge(p.status === 'REJECTED' ? '거절' : '미서명',
+                            p.status === 'REJECTED' ? 'error' : 'muted')}
+                </div>`).join('')}
+            </div>
           </div>
 
-          <div class="flex" style="margin-top:14px">
-            <span class="muted" style="font-size:12.5px">서명 완료 PDF에 감사 추적이 포함됩니다</span>
-            <span class="spacer"></span>
-            <button class="btn sm" id="open-doc">원본 열기</button>
+          <div class="flex" style="margin-top:14px;gap:8px">
+            <button class="btn sm" data-file="agreement" ${agreementReady ? '' : 'disabled'}>
+              약정서 원본 열기</button>
+            <button class="btn sm" data-file="audit_trail" ${auditReady ? '' : 'disabled'}>
+              감사 추적 인증서</button>
+          </div>
+
+          <div class="note" style="margin-top:12px">
+            <b>감사 추적 인증서</b>는 누가 · 언제 · 어떤 기기와 IP로 문서를 열람하고 서명했는지
+            모두싸인이 기록해 발급하는 별도 PDF입니다. 나중에 기부자가 “서명한 적 없다”고 할 때
+            약정의 법적 효력을 증명하는 근거가 됩니다.
           </div>
 
           <div style="margin-top:14px" class="flex-col">
             ${data.proof_pack.items.map((it) => `
               <div class="flex" style="font-size:13px">
                 <span>${esc(it.label)}</span><span class="spacer"></span>
-                ${badge(it.available ? '포함' : '연동 필요', it.available ? 'success' : 'muted')}
+                ${badge(it.available ? '포함' : '없음', it.available ? 'success' : 'muted')}
               </div>`).join('')}
           </div>
 
@@ -120,29 +154,13 @@ export async function render(root, ctx) {
 
     <div class="note">${esc(data.proof_pack.note)}${API_BASE ? ` · API: ${esc(API_BASE)}` : ''}</div>`;
 
-  root.querySelector('#open-doc').onclick = () => openOriginal(documentId);
-}
-
-// 서명 완료 약정서 원본을 새 탭에서 연다.
-// 모두싸인이 파일 대신 짧게 유효한 다운로드 URL을 줄 수도 있어 두 경우를 모두 받는다.
-async function openOriginal(documentId) {
-  const path = `/api/donations/${encodeURIComponent(documentId)}/file`;
-  try {
-    const res = await fetch(`${API_BASE}${path}`);
-    if (!res.ok) throw new Error((await res.json()).detail || `${res.status}`);
-
-    if (res.headers.get('content-type')?.includes('application/json')) {
-      const { download_url: url } = await res.json();
-      window.open(url, '_blank', 'noopener');
-      return;
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank', 'noopener');
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  } catch (err) {
-    toast(err.message, 'error');
-  }
+  // 서버가 PDF를 그대로 내려주므로 클릭 즉시 새 탭을 연다.
+  // 주소를 먼저 받아오고 나중에 여는 방식은 팝업 차단에 걸려 빈 탭만 남는다.
+  root.querySelectorAll('[data-file]').forEach((btn) => {
+    btn.onclick = () => window.open(
+      `${API_BASE}/api/donations/${encodeURIComponent(documentId)}/file?kind=${btn.dataset.file}`,
+      '_blank', 'noopener');
+  });
 }
 
 // 모두싸인에서 서명 상태를 다시 읽어온다(60초 캐시 우회).

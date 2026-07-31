@@ -51,11 +51,20 @@ _ENDPOINTS = {
     "remind": "/documents/{document_id}/participants/{participant_id}/remind",
 }
 
-# 감사 추적 인증서 전용 API는 존재하지 않는다.
-#   /documents/{id}/audit-trail 을 포함해 audit-trails · certificate · trail ·
-#   logs 등 8가지 변형을 모두 확인했으나 전부 404였다(2026-07-30).
-#   서명 완료 PDF(document_file) 안에 감사 추적 페이지가 포함되어 나온다.
-AUDIT_TRAIL_IN_SIGNED_PDF = True
+# 파일 내려받기는 /documents/{id}/file 을 그냥 부르면 400이 난다(2026-07-31 확인).
+#   {"property":"signedUrlToken","message":"signedUrlToken should not be empty"}
+# 토큰을 우리가 만들 수는 없고, 문서 응답(목록·상세 모두)에 이미 완성된 presigned URL이
+# 들어 있다. 그래서 파일은 항상 "문서를 읽어서 → 그 안의 downloadUrl을 그대로 GET" 한다.
+#
+#   raw["file"]["downloadUrl"]        → 서명 완료 약정서 PDF
+#   raw["auditTrail"]["downloadUrl"]  → 감사 추적 인증서 PDF (별도 파일이다)
+#
+# presigned URL이라 Authorization 헤더 없이도 받아지고, 유효 시간이 짧아서
+# 캐시해 두면 안 된다. 누를 때마다 문서를 다시 읽어 새 URL을 받는다.
+FILE_KINDS = {
+    "agreement": ("file", "서명 완료 약정서"),
+    "audit_trail": ("auditTrail", "감사 추적 인증서"),
+}
 
 # 모두싸인이 문서 하나에 받아주는 metadatas 최대 개수(공식 문서 기준).
 # 기부 정보 키가 딱 이 개수라 새 키를 넣으려면 기존 키를 빼야 한다.
@@ -84,6 +93,19 @@ STATUS_LABELS = {
     "EXPIRED": "기한 만료",
     "CANCELED": "취소됨",
     "DRAFT": "작성 중",
+}
+
+# 문서 이력 action → W4 타임라인 태그 (w4_detail.js의 TAG_TONE과 같은 말을 쓴다)
+HISTORY_TAGS = {
+    "START_SIGNING_REQUEST": "발송",
+    "SIGNING_REQUEST": "발송",
+    "FIRST_READING_DOCUMENT_IN_SIGNING_TURN": "열람",
+    "READING_DOCUMENT": "열람",
+    "SIGNING_COMPLETED": "완료",
+    "SIGNING_COMPLETED_ALL": "완료",
+    "SIGNING_REJECTED": "거절",
+    "SIGNING_CANCELED": "거절",
+    "REQUEST_CANCELED": "거절",
 }
 
 
@@ -236,7 +258,11 @@ class ModusignClient:
         return _normalize_document(payload)
 
     async def get_histories(self, document_id: str) -> list[dict]:
-        """W4 진행 타임라인용 문서 이력."""
+        """W4 진행 타임라인용 문서 이력.
+
+        실제 응답은 {"histories": [{message, timestamp, action, generator}]} 형태다.
+        (2026-07-31 확인 — createdAt/description 같은 필드는 없다.)
+        """
         if self.mock:
             doc = await self.get_document(document_id)
             return doc.get("history", []) if doc else []
@@ -244,14 +270,17 @@ class ModusignClient:
             "GET", _ENDPOINTS["document_histories"].format(document_id=document_id)
         )
         rows = payload.get("histories") or payload.get("data") or []
-        return [
-            {
-                "date": (r.get("createdAt") or "")[:10],
-                "event": r.get("description") or r.get("type", ""),
-                "tag": r.get("type", ""),
-            }
-            for r in rows
-        ]
+        out = []
+        for r in rows:
+            action = r.get("action") or ""
+            stamp = r.get("timestamp") or ""
+            out.append({
+                "date": stamp[:10],
+                "time": stamp[11:16],
+                "event": r.get("message") or action,
+                "tag": HISTORY_TAGS.get(action, "기록"),
+            })
+        return out
 
     async def remind(self, document_id: str, participant_id: str | None = None) -> dict:
         """W2 미서명자 재발송(리마인드)."""
@@ -274,15 +303,39 @@ class ModusignClient:
         self.invalidate_documents()
         return {"ok": True, "document_id": document_id, "count": len(targets)}
 
-    async def download_file(self, document_id: str) -> bytes:
-        """W4 증빙 팩: 서명 완료 약정서 PDF.
+    async def file_urls(self, document_id: str) -> dict[str, str]:
+        """약정서·감사 추적 인증서의 내려받기 URL을 새로 받아온다.
 
-        모두싸인에는 감사 추적 인증서를 따로 주는 API가 없다(AUDIT_TRAIL_IN_SIGNED_PDF).
-        이 PDF 안에 감사 추적 페이지가 함께 들어 있다.
+        presigned URL이라 유효 시간이 짧다. 저장하지 말고 필요할 때마다 부를 것.
         """
         if self.mock:
-            raise ModusignError("데모 모드에서는 실제 PDF를 내려받을 수 없습니다.")
-        return await self._request("GET", _ENDPOINTS["document_file"].format(document_id=document_id))
+            raise ModusignError("데모 모드에서는 실제 PDF가 없습니다.")
+        raw = await self._request("GET", _ENDPOINTS["document"].format(document_id=document_id))
+        urls = {}
+        for key, (field, _label) in FILE_KINDS.items():
+            url = (raw.get(field) or {}).get("downloadUrl")
+            if url:
+                urls[key] = url
+        if not urls:
+            raise ModusignError("이 문서에는 내려받을 수 있는 파일이 없습니다. 서명이 끝났는지 확인해주세요.")
+        return urls
+
+    async def download_file(self, document_id: str, kind: str = "agreement") -> bytes:
+        """PDF 본문을 내려받는다(W4 증빙 팩 zip에 담을 때 사용).
+
+        kind: "agreement" 서명 완료 약정서 · "audit_trail" 감사 추적 인증서
+        """
+        urls = await self.file_urls(document_id)
+        url = urls.get(kind)
+        if not url:
+            label = FILE_KINDS.get(kind, (None, kind))[1]
+            raise ModusignError(f"{label}를 찾을 수 없습니다.")
+        # presigned URL이라 Authorization 헤더를 붙이지 않는다.
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as http:
+            res = await http.get(url)
+        if res.status_code >= 400:
+            raise ModusignError(f"파일 내려받기 실패 {res.status_code}")
+        return res.content
 
     # ── 템플릿 ──────────────────────────────────────────────
     async def list_templates(self) -> list[dict]:
@@ -399,22 +452,44 @@ def _normalize_document(raw: dict) -> dict:
     여기서 다시 꺼내 쓴다.
     """
     meta = _meta(raw)
+
+    # 서명 시각은 participants가 아니라 별도의 signings 배열에 들어온다(2026-07-31 확인).
+    # 이걸 안 합치면 체결 완료 문서도 전부 "미서명"으로 보인다.
+    signed_at_by_participant = {
+        s.get("participantId"): s.get("signedAt")
+        for s in (raw.get("signings") or [])
+        if s.get("participantId")
+    }
+    doc_status = raw.get("status", "ON_GOING")
+
     participants = []
     for p in raw.get("participants") or []:
         name = p.get("name", "")
+        method = p.get("signingMethod") or {}
+        signed_at = signed_at_by_participant.get(p.get("id")) or p.get("signedAt")
+        if signed_at:
+            status = "SIGNED"
+        elif doc_status == "REJECTED":
+            status = "REJECTED"
+        else:
+            status = p.get("status") or "SENT"
         participants.append({
             "id": p.get("id"),
             "name": name,
-            "masked_name": (name[0] + "○○") if name else "",
             "role": p.get("role", "기부자"),
-            "email": (p.get("signingMethod") or {}).get("value") if (p.get("signingMethod") or {}).get("type") == "EMAIL" else p.get("email"),
-            "phone": (p.get("signingMethod") or {}).get("value"),
-            "status": p.get("status", "SENT"),
+            "email": method.get("value") if method.get("type") == "EMAIL" else p.get("email"),
+            "phone": method.get("value") if method.get("type") != "EMAIL" else p.get("phone"),
+            "status": status,
+            # 열람 시각은 문서 응답에 없다. 이력(histories)에만 남으므로 W4에서 따로 읽는다.
             "viewed_at": p.get("viewedAt"),
-            "signed_at": p.get("signedAt"),
+            "signed_at": signed_at,
         })
 
-    donor = participants[0] if participants else {"name": "", "masked_name": ""}
+    donor = participants[0] if participants else {"name": ""}
+    # completedAt 필드는 응답에 없다. 마지막 서명 시각을 체결 시각으로 쓴다.
+    completed_at = raw.get("completedAt") or (
+        max(signed_at_by_participant.values()) if signed_at_by_participant else None
+    )
     start_date = meta.get("start_date") or (raw.get("createdAt") or "")[:10]
     term_months = _to_int(meta.get("term_months"), 12)
 
@@ -422,14 +497,13 @@ def _normalize_document(raw: dict) -> dict:
         "id": raw.get("id"),
         "title": raw.get("title", ""),
         "template_id": raw.get("templateId"),
-        "status": raw.get("status", "ON_GOING"),
+        "status": doc_status,
         "requested_at": (raw.get("createdAt") or "")[:10],
-        "completed_at": (raw.get("completedAt") or "")[:10] or None,
+        "completed_at": (completed_at or "")[:10] or None,
         "expires_at": meta.get("end_date") or (raw.get("expiresAt") or "")[:10] or None,
         "donor": {
             "id": meta.get("donor_id") or donor.get("id"),
             "name": donor.get("name", ""),
-            "masked_name": donor.get("masked_name", ""),
             "email": donor.get("email"),
             "phone": donor.get("phone"),
         },
@@ -446,6 +520,12 @@ def _normalize_document(raw: dict) -> dict:
             "motivation": meta.get("motivation", ""),
         },
         "participants": participants,
+        # 어떤 증빙 파일이 실제로 존재하는지. URL 자체는 유효 시간이 짧아 화면에 내려보내지
+        # 않고, 눌렀을 때 서버가 문서를 다시 읽어 새 URL을 받는다(W4 원본 열기).
+        "files": {
+            key: bool((raw.get(field) or {}).get("downloadUrl"))
+            for key, (field, _label) in FILE_KINDS.items()
+        },
         # 이행 회차·증빙은 기관 로컬 저장소에서 병합한다(services/fulfillment.py).
         "installments": [],
         "amendment": None,

@@ -98,8 +98,7 @@ def build(documents: list[dict], today: date | None = None) -> dict:
 def _row(doc: dict, rule: dict, key: str, reason: str, priority: float) -> dict:
     return {
         "document_id": doc["id"],
-        "donor": doc["donor"]["masked_name"],
-        "donor_full": doc["donor"]["name"],
+        "donor": doc["donor"]["name"],
         "phone": doc["donor"].get("phone"),
         "email": doc["donor"].get("email"),
         "rule": key,
@@ -132,7 +131,7 @@ def renewal_candidates(documents: list[dict], days: int = 60) -> list[dict]:
             if (d["fulfillment_rate"] or 100) >= 80:
                 out.append({
                     "document_id": doc["id"],
-                    "donor": doc["donor"]["masked_name"],
+                    "donor": doc["donor"]["name"],
                     "end_date": d["end_date"],
                     "fulfillment_rate": d["fulfillment_rate"],
                 })

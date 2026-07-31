@@ -17,6 +17,7 @@ import * as w9 from './views/w9_reports.js';
 const NAV = [
   { key: 'dashboard', label: '대시보드', href: '#/dashboard' },
   { key: 'donations', label: '기부 현황', href: '#/donations' },
+  { key: 'fulfillment', label: '이행 관리', href: '#/fulfillment' },
   { key: 'templates', label: '서식 · 템플릿', href: '#/templates/new' },
   { key: 'programs', label: '모금 사업', href: '#/programs/new' },
   { key: 'reports', label: '리포트', href: '#/reports' },
@@ -32,7 +33,7 @@ const ROUTES = [
   { re: /^\/templates\/new$/, view: w5, nav: 'templates' },
   { re: /^\/templates\/([\w-]+)\/edit$/, view: w6, nav: 'templates', params: ['templateId'] },
   { re: /^\/programs\/new$/, view: w7, nav: 'programs' },
-  { re: /^\/fulfillment$/, view: w8, nav: 'donations' },
+  { re: /^\/fulfillment$/, view: w8, nav: 'fulfillment' },
   { re: /^\/reports$/, view: w9, nav: 'reports' },
 ];
 

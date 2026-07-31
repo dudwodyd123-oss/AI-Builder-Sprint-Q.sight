@@ -6,12 +6,14 @@ import io
 import json
 import zipfile
 from datetime import datetime
+from html import escape
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
-from ..clients.modusign import STATUS_LABELS, ModusignError
+from ..clients.modusign import FILE_KINDS, STATUS_LABELS, ModusignError
 from ..clients.modusign import client as modusign
 from ..services import donations as svc
 from ..services import risk
@@ -49,7 +51,7 @@ async def list_donations(status: str | None = None, q: str | None = None):
 
     if q:
         needle = q.strip()
-        rows = [r for r in rows if needle in r["donor_full"] or needle in (r["program_name"] or "")]
+        rows = [r for r in rows if needle in r["donor"] or needle in (r["program_name"] or "")]
 
     return {
         "rows": rows,
@@ -102,17 +104,19 @@ async def get_detail(document_id: str):
         raise HTTPException(404, "약정 문서를 찾을 수 없습니다.")
 
     history = doc.get("history") or await modusign.get_histories(document_id)
+    files = doc.get("files") or {}
     return {
         "document": doc,
         "history": history,
         "proof_pack": {
             "items": [
-                {"key": "agreement", "label": "서명 완료 약정서 PDF", "available": not modusign.mock},
-                {"key": "audit", "label": "감사 추적 인증서 (약정서 PDF에 포함)",
-                 "available": not modusign.mock},
+                {"key": "agreement", "label": "서명 완료 약정서 PDF",
+                 "available": bool(files.get("agreement")) and not modusign.mock},
+                {"key": "audit_trail", "label": "감사 추적 인증서 PDF",
+                 "available": bool(files.get("audit_trail")) and not modusign.mock},
                 {"key": "fulfillment", "label": "이행 증빙 목록 (JSON)", "available": True},
             ],
-            "note": "증빙 팩 = 서명 완료 약정서(감사 추적 포함) + 이행 증빙" if not modusign.mock
+            "note": "증빙 팩 = 서명 완료 약정서 + 감사 추적 인증서 + 이행 증빙" if not modusign.mock
                     else "데모 모드에서는 이행 증빙 요약만 내려받을 수 있습니다.",
         },
     }
@@ -130,7 +134,7 @@ async def refresh_document(document_id: str):
 
     participants = [
         {
-            "name": p.get("masked_name") or p.get("name"),
+            "name": p.get("name"),
             "status": p.get("status"),
             "viewed_at": p.get("viewed_at"),
             "signed_at": p.get("signed_at"),
@@ -149,26 +153,40 @@ async def refresh_document(document_id: str):
 
 
 @router.get("/{document_id}/file")
-async def download_document_file(document_id: str):
-    """W4 약정서 원본 — 서명 완료 PDF(감사 추적 페이지 포함)."""
+async def open_document_file(document_id: str, kind: str = "agreement"):
+    """W4 원본 열기 — 서명 완료 약정서 또는 감사 추적 인증서를 새 탭에서 바로 연다.
+
+    모두싸인은 파일을 직접 주지 않고 유효 시간이 짧은 presigned URL을 준다.
+    그 주소를 화면으로 넘겨 열게 하면, 주소를 받아오는 사이 팝업 차단에 걸려
+    빈 탭만 남는다. 서버가 대신 받아 같은 출처에서 PDF를 그대로 흘려보낸다.
+    새로고침해도 그때마다 새 URL을 받으므로 만료에 걸리지 않는다.
+    """
+    if kind not in FILE_KINDS:
+        return _file_error(400, f"알 수 없는 파일 종류: {kind}")
     if modusign.mock:
-        raise HTTPException(409, "데모 모드에서는 실제 약정서 PDF가 없습니다.")
+        return _file_error(409, "데모 모드에서는 실제 PDF가 없습니다.")
+
     try:
-        content = await modusign.download_file(document_id)
+        pdf = await modusign.download_file(document_id, kind)
     except ModusignError as e:
-        raise HTTPException(502, str(e)) from e
+        return _file_error(502, str(e))
 
-    if isinstance(content, dict):
-        # 응답이 JSON이면 다운로드 URL만 내려주는 형태다(유효시간 짧음).
-        url = content.get("downloadUrl") or (content.get("file") or {}).get("downloadUrl")
-        if url:
-            return {"download_url": url, "note": "이 URL은 유효 시간이 짧습니다."}
-        raise HTTPException(502, "약정서 파일 응답을 해석하지 못했습니다.")
-
-    return StreamingResponse(
-        io.BytesIO(content),
+    filename = quote(f"{FILE_KINDS[kind][1]}.pdf")
+    return Response(
+        pdf,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="agreement-{document_id}.pdf"'},
+        headers={"Content-Disposition": f"inline; filename*=UTF-8''{filename}"},
+    )
+
+
+def _file_error(status: int, message: str) -> HTMLResponse:
+    """이 주소는 새 탭에서 그대로 열리므로, 오류도 사람이 읽을 화면으로 돌려준다."""
+    return HTMLResponse(
+        "<!doctype html><meta charset='utf-8'><title>문서를 열지 못했습니다</title>"
+        "<div style=\"font:15px/1.7 system-ui,sans-serif;color:#33475B;padding:48px;max-width:520px\">"
+        "<b style='font-size:17px'>문서를 열지 못했습니다</b>"
+        f"<p>{escape(message)}</p></div>",
+        status_code=status,
     )
 
 
@@ -184,7 +202,7 @@ async def download_proof_pack(document_id: str):
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         summary = {
             "document_id": doc["id"],
-            "donor": doc["donor"]["masked_name"],
+            "donor": doc["donor"]["name"],
             "donation": doc["donation"],
             "status": doc["derived"]["board_status"],
             "installments": doc.get("installments", []),
@@ -193,11 +211,13 @@ async def download_proof_pack(document_id: str):
         zf.writestr("이행내역.json", json.dumps(summary, ensure_ascii=False, indent=2))
 
         if not modusign.mock:
-            # 감사 추적 인증서는 별도 API가 없고 서명 완료 PDF에 포함되어 나온다.
-            try:
-                zf.writestr("약정서_감사추적포함.pdf", await modusign.download_file(document_id))
-            except ModusignError as e:
-                zf.writestr("오류.txt", str(e))
+            # 약정서와 감사 추적 인증서는 서로 다른 PDF다. 둘 다 담는다.
+            for kind, filename in (("agreement", "약정서.pdf"),
+                                   ("audit_trail", "감사추적인증서.pdf")):
+                try:
+                    zf.writestr(filename, await modusign.download_file(document_id, kind))
+                except ModusignError as e:
+                    zf.writestr(f"오류_{filename}.txt", str(e))
 
     buf.seek(0)
     return StreamingResponse(

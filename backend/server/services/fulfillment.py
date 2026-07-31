@@ -22,6 +22,9 @@ MAX_OVERDUE = 30
 MAX_WAITING = 20
 MAX_DONE = 25
 
+# 자동 매칭이 실패했을 때 담당자가 직접 고르도록 내려보내는 회차 수 상한
+MAX_MANUAL_OPTIONS = 100
+
 PROOF_SCHEMA = {
     "type": "object",
     "properties": {
@@ -98,11 +101,11 @@ def rows(documents: list[dict], today: date | None = None) -> list[dict]:
 
             out.append({
                 "document_id": doc["id"],
-                "donor": doc["donor"]["masked_name"],
+                "donor": doc["donor"]["name"],
                 "program_name": doc["donation"]["program_name"],
                 "type": doc["donation"]["type"],
                 "no": inst["no"],
-                "label": f"{doc['donor']['masked_name']} · {inst['no']}회차",
+                "label": f"{doc['donor']['name']} · {inst['no']}회차",
                 "due_date": inst["due_date"],
                 "paid_date": inst.get("paid_date"),
                 "amount": inst["amount"],
@@ -185,7 +188,7 @@ def match(documents: list[dict], extracted: dict, document_id: str | None = None
                 score += 1 - gap / DATE_WINDOW_DAYS
             candidates.append({
                 "document_id": doc["id"],
-                "donor": doc["donor"]["masked_name"],
+                "donor": doc["donor"]["name"],
                 "no": inst["no"],
                 "due_date": inst["due_date"],
                 "amount": inst["amount"],
@@ -197,6 +200,36 @@ def match(documents: list[dict], extracted: dict, document_id: str | None = None
         candidates and len(candidates) > 1 and candidates[0]["score"] - candidates[1]["score"] > 0.3
     ) else None
     return {"matched": matched, "candidates": candidates[:5]}
+
+
+def open_installments(documents: list[dict], today: date | None = None) -> list[dict]:
+    """아직 이행되지 않은 회차 전부.
+
+    금액·날짜가 맞는 후보를 찾지 못했을 때, 담당자가 목록에서 직접 고를 수 있게
+    내려보낸다. 지연된 회차가 먼저 오도록 예정일 순으로 정렬한다.
+    """
+    today = today or date.today()
+    out = []
+    for doc in documents:
+        if not doc["derived"]["is_active"] and doc["status"] != "EXPIRED":
+            continue
+        for inst in doc.get("installments", []):
+            if inst.get("paid_date"):
+                continue
+            due = _d(inst["due_date"])
+            if not due:
+                continue
+            out.append({
+                "document_id": doc["id"],
+                "donor": doc["donor"]["name"],
+                "program_name": doc["donation"].get("program_name"),
+                "no": inst["no"],
+                "due_date": inst["due_date"],
+                "amount": inst["amount"],
+                "status": f"지연 {(today - due).days}일" if due < today else "대기",
+            })
+    out.sort(key=lambda r: (r["due_date"], r["donor"], r["no"]))
+    return out[:MAX_MANUAL_OPTIONS]
 
 
 def confirm(documents: list[dict], document_id: str, no: int, paid_date: str,

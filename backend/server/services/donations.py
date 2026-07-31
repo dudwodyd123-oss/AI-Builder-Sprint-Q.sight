@@ -14,6 +14,11 @@ from ..clients.modusign import STATUS_LABELS, client
 # 이행 지연으로 볼 유예 기간(일)
 GRACE_DAYS = 5
 
+# 납부 주기별 회차 간격(개월). 여기 없는 주기(일시·유산)는 회차 이행이 없다.
+SCHEDULE_STEPS = {"월": 1, "회": 3, "연": 12}
+# 예정표가 끝없이 길어지지 않도록 둔 상한
+MAX_SCHEDULE = 60
+
 
 def _d(value: str | None) -> date | None:
     if not value:
@@ -42,8 +47,54 @@ async def load_documents() -> list[dict]:
         patch = local.get(doc["id"])
         if patch and patch.get("installments"):
             doc["installments"] = patch["installments"]
+        elif not doc.get("installments"):
+            doc["installments"] = _schedule(doc, today)
         enriched.append(_derive(doc, today))
     return enriched
+
+
+def _add_months(d: date, months: int) -> date:
+    y, m = d.year, d.month + months
+    y += (m - 1) // 12
+    m = (m - 1) % 12 + 1
+    leap = y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)
+    last = [31, 29 if leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]
+    return date(y, m, min(d.day, last))
+
+
+def _schedule(doc: dict, today: date) -> list[dict]:
+    """약정 조건으로 예정 회차표를 만든다.
+
+    모두싸인에는 회차 개념이 없다. 체결된 정기·봉사 약정은 납부 주기와 기간으로
+    예정표를 직접 세워야 W8에서 증빙을 붙일 회차가 생긴다. 이행 기록은 담당자가
+    확인할 때 store에 쌓이고, 그때부터는 저장된 쪽이 이 예정표를 대신한다.
+    """
+    if doc.get("status") not in ("COMPLETED", "EXPIRED"):
+        return []
+    donation = doc.get("donation", {})
+    step = SCHEDULE_STEPS.get(donation.get("frequency"))
+    start = _d(donation.get("start_date")) or _d(doc.get("requested_at"))
+    if not step or not start:
+        return []
+
+    end = _d(donation.get("end_date"))
+    months = int(donation.get("term_months") or 0)
+    if not months and end:
+        months = max(1, round(months_between(start, end)))
+    total = min(MAX_SCHEDULE, max(1, (months or 12) // step))
+
+    rows = []
+    for i in range(total):
+        due = _add_months(start, i * step)
+        rows.append({
+            "no": i + 1,
+            "due_date": due.isoformat(),
+            "paid_date": None,
+            "amount": donation.get("amount") or 0,
+            "proof_id": None,
+            "status": "대기" if due > today else "미이행",
+        })
+    return rows
 
 
 def _derive(doc: dict, today: date) -> dict:
@@ -142,8 +193,7 @@ def to_row(doc: dict) -> dict:
     d = doc["derived"]
     return {
         "id": doc["id"],
-        "donor": doc["donor"]["masked_name"],
-        "donor_full": doc["donor"]["name"],
+        "donor": doc["donor"]["name"],
         "title": doc["title"],
         "type": doc["donation"]["type"],
         "amount": doc["donation"]["amount"],

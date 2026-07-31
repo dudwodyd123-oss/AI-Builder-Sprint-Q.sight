@@ -42,7 +42,7 @@ export async function render(root, ctx) {
 
     <div class="note">
       업로드한 증빙에서 금액·날짜를 읽어 회차에 자동으로 붙입니다.
-      후보가 여러 개면 담당자가 직접 선택합니다.
+      후보가 여러 개거나 맞는 회차를 찾지 못하면, 이행 대기 회차 목록에서 직접 고릅니다.
     </div>`;
 
   root.querySelector('#rows').addEventListener('click', (e) => {
@@ -90,10 +90,24 @@ function rowHtml(r) {
     </tr>`;
 }
 
+function candidateHtml(c, i, checked) {
+  return `
+    <label class="field-pill" style="cursor:pointer"
+           data-search="${esc(`${c.donor} ${c.program_name || ''}`)}">
+      <input type="radio" name="cand" value="${i}" ${checked ? 'checked' : ''}>
+      <span>${esc(c.donor)} · ${c.no}회차</span>
+      <span class="t">예정 ${esc(c.due_date.slice(5))}
+        · ${c.amount ? won(c.amount) : '금액 없음'}${c.status ? ` · ${esc(c.status)}` : ''}</span>
+    </label>`;
+}
+
 function openMatchModal(res, ctx) {
   const ex = res.extracted || {};
   const candidates = res.candidates || [];
   const matched = res.matched;
+  // 금액·날짜가 맞는 후보가 없으면 이행 대기 회차 전체를 놓고 직접 고른다.
+  const manual = !candidates.length;
+  const options = manual ? (res.open_installments || []) : candidates;
 
   const body = `
     <div class="flex" style="margin-bottom:14px">
@@ -112,17 +126,24 @@ function openMatchModal(res, ctx) {
       </tbody>
     </table>
 
-    <div class="strong" style="margin-bottom:8px">매칭 후보</div>
-    ${candidates.length ? `
-      <div class="flex-col" style="gap:7px">
-        ${candidates.map((c, i) => `
-          <label class="field-pill" style="cursor:pointer">
-            <input type="radio" name="cand" value="${i}" ${matched && c.document_id === matched.document_id && c.no === matched.no ? 'checked' : (i === 0 && !matched ? 'checked' : '')}>
-            <span>${esc(c.donor)} · ${c.no}회차</span>
-            <span class="t">예정 ${esc(c.due_date.slice(5))} · ${won(c.amount)}</span>
-          </label>`).join('')}
+    <div class="flex" style="margin-bottom:8px">
+      <span class="strong">${manual ? '이행 대기 회차' : '매칭 후보'}</span>
+      <span class="spacer"></span>
+      <span class="muted" style="font-size:12px">${options.length}건</span>
+    </div>
+    ${manual && options.length ? `
+      <div class="note" style="margin:0 0 10px">
+        금액·날짜가 맞는 회차를 찾지 못했습니다. 아래 목록에서 직접 골라주세요.</div>
+      <input id="cand-q" placeholder="기부자 · 사업 검색"
+             style="border:1px solid var(--line);border-radius:6px;padding:7px 10px;width:100%;margin-bottom:8px">`
+    : ''}
+    ${options.length ? `
+      <div class="flex-col" id="cand-list" style="gap:7px;max-height:260px;overflow:auto">
+        ${options.map((c, i) => candidateHtml(c, i, !manual && (
+          matched ? c.document_id === matched.document_id && c.no === matched.no : i === 0
+        ))).join('')}
       </div>`
-    : '<div class="empty">매칭할 회차를 찾지 못했습니다. 약정 상세에서 직접 기록해주세요.</div>'}
+    : '<div class="empty">이행 대기 중인 회차가 없습니다. 약정 상세에서 확인해주세요.</div>'}
 
     <div class="note" style="margin-top:14px">${esc(res.message)}</div>`;
 
@@ -130,12 +151,22 @@ function openMatchModal(res, ctx) {
     title: '증빙 매칭',
     body,
     footer: `<button class="btn" data-close>취소</button>
-             <button class="btn primary" id="confirm" ${candidates.length ? '' : 'disabled'}>이행 확정</button>`,
+             <button class="btn primary" id="confirm" ${options.length ? '' : 'disabled'}>이행 확정</button>`,
     onMount: (bg, close) => {
+      const q = bg.querySelector('#cand-q');
+      if (q) {
+        q.oninput = () => {
+          const needle = q.value.trim();
+          bg.querySelectorAll('#cand-list label').forEach((el) => {
+            el.hidden = Boolean(needle) && !el.dataset.search.includes(needle);
+          });
+        };
+      }
+
       bg.querySelector('#confirm')?.addEventListener('click', async (e) => {
         const picked = bg.querySelector('input[name=cand]:checked');
         if (!picked) return toast('회차를 선택해주세요.', 'error');
-        const c = candidates[Number(picked.value)];
+        const c = options[Number(picked.value)];
         const btn = e.currentTarget;
         btn.disabled = true;
         btn.textContent = '기록 중…';

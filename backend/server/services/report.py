@@ -134,7 +134,7 @@ def receipt_targets(documents: list[dict], year: int | None = None) -> dict:
         if amount <= 0:
             continue
         row = targets.setdefault(donor_key, {
-            "donor": doc["donor"]["masked_name"],
+            "donor": doc["donor"]["name"],
             "email": doc["donor"].get("email"),
             "amount": 0,
         })

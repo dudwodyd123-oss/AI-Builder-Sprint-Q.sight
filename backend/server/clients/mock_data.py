@@ -144,10 +144,6 @@ MOTIVATIONS = [
 ]
 
 
-def _mask(name: str) -> str:
-    return name[0] + "○○"
-
-
 def _iso(d: date) -> str:
     return d.isoformat()
 
@@ -241,7 +237,7 @@ class _Gen:
         """W4 진행 타임라인. 모두싸인 문서 이력 + 기관 이행 이력을 합친 형태."""
         events = [{"date": doc["requested_at"][:10], "event": "약정서 발송", "tag": "발송"}]
         for p in doc["participants"]:
-            who = p.get("masked_name") or p["name"]
+            who = p["name"]
             if p.get("viewed_at"):
                 events.append({"date": p["viewed_at"][:10], "event": f"{who} 문서 열람", "tag": "열람"})
             if p.get("signed_at"):
@@ -296,7 +292,6 @@ class _Gen:
         participants = [{
             "id": f"{doc_id}_p1",
             "name": name,
-            "masked_name": _mask(name),
             "role": "기부자",
             "email": f"donor{self.seq}@example.com",
             "phone": f"010-{rng.randint(1000, 9999)}-{rng.randint(1000, 9999)}",
@@ -362,7 +357,6 @@ class _Gen:
             "donor": {
                 "id": f"donor_{self.seq}",
                 "name": name,
-                "masked_name": _mask(name),
                 "email": participants[0]["email"],
                 "phone": participants[0]["phone"],
             },

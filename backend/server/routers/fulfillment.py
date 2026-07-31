@@ -40,9 +40,11 @@ async def upload_proof(
     docs = await donations.load_documents()
     match = svc.match(docs, parsed["extracted"], document_id)
 
+    # 후보를 못 찾으면 이행 대기 중인 회차를 통째로 보내 담당자가 직접 고르게 한다.
     return {
         **parsed,
         **match,
+        "open_installments": [] if match["candidates"] else svc.open_installments(docs),
         "auto": match["matched"] is not None,
         "message": (
             f"{match['matched']['donor']} {match['matched']['no']}회차에 자동 매칭했습니다."

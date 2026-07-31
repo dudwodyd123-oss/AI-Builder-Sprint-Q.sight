@@ -246,6 +246,19 @@ def confirm(documents: list[dict], document_id: str, no: int, paid_date: str,
 
     due = _d(target["due_date"])
     paid = _d(paid_date) or date.today()
+
+    # 증빙에서 뽑은 날짜가 엉뚱할 수 있다(영수증 이미지의 다른 날짜를 읽는 경우).
+    # 약정이 시작되기도 전의 이행은 성립하지 않으므로 막는다. 이걸 그대로 받으면
+    # "이번 달 실제 수입" 같은 집계가 조용히 틀어진다.
+    start = _d(doc["derived"].get("start_date"))
+    if start and paid < start:
+        raise ValueError(
+            f"이행일({paid.isoformat()})이 약정 시작일({start.isoformat()})보다 앞섭니다. "
+            "증빙에서 읽은 날짜가 맞는지 확인해주세요."
+        )
+    if paid > date.today():
+        raise ValueError(f"이행일({paid.isoformat()})이 미래입니다. 날짜를 확인해주세요.")
+
     target["paid_date"] = paid.isoformat()
     target["status"] = "완료" if due and (paid - due).days <= 5 else "지연 완료"
     target["proof_id"] = proof.get("proof_id") or f"prf_{document_id}_{no}"

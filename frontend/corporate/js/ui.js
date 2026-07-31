@@ -79,7 +79,16 @@ export function donutLegend(items) {
 }
 
 export function progressBar(rate, coral = false) {
-  return `<div class="progress ${coral ? 'coral' : ''}"><i style="width:${Math.min(100, Math.max(0, rate))}%"></i></div>`;
+  const v = Math.min(100, Math.max(0, Number(rate) || 0));
+  // 0.3% 같은 값은 픽셀로 환산하면 사라진다. 들어온 돈이 있으면 최소한 보이게 한다.
+  const width = v > 0 ? `max(3px, ${v}%)` : '0';
+  return `<div class="progress ${coral ? 'coral' : ''}"><i style="width:${width}"></i></div>`;
+}
+
+// 달성률 표시. 10% 이상은 정수, 그 미만은 소수 한 자리까지 보여준다.
+export function pct(rate) {
+  const v = Number(rate) || 0;
+  return Number.isInteger(v) ? `${v}%` : `${v.toFixed(1)}%`;
 }
 
 // ── 피드백 ──────────────────────────────────────────────

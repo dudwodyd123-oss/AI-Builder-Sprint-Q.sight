@@ -1,7 +1,7 @@
 // W7 모금 사업 등록 — 공고문 자동 채우기 + 추천 태그
 
 import { api } from '../api.js';
-import { badge, esc, num, progressBar, toast, won } from '../ui.js';
+import { badge, esc, num, pct, progressBar, toast, won } from '../ui.js';
 
 export const TITLE = '모금 사업 등록';
 export const SCREEN = 'W7';
@@ -231,7 +231,7 @@ function programCard(p) {
       </div>
       <div class="flex" style="margin:7px 0 5px">
         <div style="flex:1">${progressBar(p.rate, p.rate < 40)}</div>
-        <span class="strong nowrap" style="font-size:12.5px">${p.rate}%</span>
+        <span class="strong nowrap" style="font-size:12.5px">${pct(p.rate)}</span>
       </div>
       <div class="muted" style="font-size:12px">
         ${won(p.raised_amount)} / ${won(p.goal_amount)} · ${esc(p.start_date)} ~ ${esc(p.end_date)}

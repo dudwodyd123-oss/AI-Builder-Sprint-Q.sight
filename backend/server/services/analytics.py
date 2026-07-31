@@ -60,6 +60,10 @@ def _kpis(documents: list[dict], active: list[dict], today: date) -> list[dict]:
             if start and _month_key(start) == _month_key(today):
                 expected += d["donation"]["amount"]
 
+    # 2-1) 같은 달에 '실제로' 확인된 금액. 약정만 보고 판단하면 이행이 밀려도
+    #      숫자가 그대로라 문제를 못 알아챈다. 예상과 나란히 보여준다.
+    actual = _actual_income(documents, today)
+
     # 3) 이행률 — 도래한 회차 대비 이행 회차
     due = sum(d["derived"]["installments_due"] for d in documents)
     paid = sum(d["derived"]["installments_paid"] for d in documents)
@@ -100,6 +104,13 @@ def _kpis(documents: list[dict], active: list[dict], today: date) -> list[dict]:
             "unit": "천원",
             "delta": None,
             "note": "약정 기준",
+            # 예상과 실제를 함께 보여준다. 차이가 곧 아직 안 들어온 금액이다.
+            "secondary": {
+                "label": "실제 확인",
+                "value": round(actual / 1000),
+                "unit": "천원",
+                "ratio": round(actual / expected * 100) if expected else None,
+            },
         },
         {
             "key": "fulfillment_rate",
@@ -119,6 +130,26 @@ def _kpis(documents: list[dict], active: list[dict], today: date) -> list[dict]:
             "note": "해지 포함",
         },
     ]
+
+
+def _actual_income(documents: list[dict], today: date) -> int:
+    """이번 달에 실제로 확인된 금액.
+
+    회차 이행으로 기록된 금액과, 이번 달 체결된 일시 기부를 더한다.
+    (모두싸인은 입금 여부를 모른다. 이행 기록은 W8에서 증빙을 매칭할 때 쌓인다)
+    """
+    total = 0
+    for doc in documents:
+        for inst in doc.get("installments", []):
+            paid = _d(inst.get("paid_date"))
+            if paid and _month_key(paid) == _month_key(today):
+                total += inst.get("amount") or 0
+
+        if doc["donation"].get("frequency") == "일시" and doc.get("status") == "COMPLETED":
+            start = _d(doc["derived"]["start_date"])
+            if start and _month_key(start) == _month_key(today):
+                total += doc["donation"].get("amount") or 0
+    return total
 
 
 # ── 월별 신규 약정 ──────────────────────────────────────────
@@ -229,13 +260,28 @@ def _program_progress(documents: list[dict], programs: list[dict]) -> list[dict]
     for p in programs:
         goal = p.get("goal_amount") or 0
         got = raised.get(p["id"], 0)
+        pled = pledged.get(p["id"], 0)
         rows.append({
             "id": p["id"],
             "name": p["name"],
             "goal_amount": goal,
             "raised_amount": got,
-            "pledged_amount": pledged.get(p["id"], 0),
+            "pledged_amount": pled,
             "donor_count": len(donors.get(p["id"], set())),
-            "rate": round(got / goal * 100) if goal else 0,
+            "rate": _rate(got, goal),
+            # 약정까지 다 들어왔을 때의 달성률. 모금액과 함께 보면 얼마나 남았는지 보인다.
+            "pledged_rate": _rate(pled, goal),
         })
     return sorted(rows, key=lambda r: r["rate"], reverse=True)
+
+
+def _rate(amount: int, goal: int) -> float:
+    """달성률(%). 목표가 크면 첫 후원이 0.3% 같은 값이라 정수 반올림하면
+    모금액이 있는데도 0%로 보인다. 작은 값은 소수 첫째 자리까지 살린다."""
+    if not goal or not amount:
+        return 0
+    pct = amount / goal * 100
+    if pct >= 10:
+        return round(pct)
+    # 0이 되지 않도록 내림 대신 올림 쪽으로 한 자리 남긴다.
+    return max(round(pct, 1), 0.1)

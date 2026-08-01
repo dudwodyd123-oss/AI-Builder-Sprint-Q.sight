@@ -1,9 +1,12 @@
-// W9 리포트 발행 — 분기 후원 리포트, 발행 이력, 기부금영수증 대상 집계
+// W9 후원 리포트 — 분기 집계 초안, 초안 이력, 기부금영수증 대상
+//
+// 아직 아무것도 발송하지 않는다. 그래서 '발행'이라는 말을 쓰지 않는다.
+// 담당자가 보냈다고 오해하면 기부자에게 아무것도 못 보낸 채 넘어간다.
 
 import { api } from '../api.js';
 import { badge, esc, modal, num, toast, won } from '../ui.js';
 
-export const TITLE = '리포트 발행';
+export const TITLE = '후원 리포트';
 export const SCREEN = 'W9';
 
 export async function render(root, ctx) {
@@ -20,7 +23,7 @@ export async function render(root, ctx) {
     <select id="period" style="border:1px solid var(--line);border-radius:6px;padding:6px 10px">
       ${periodOptions(draft)}
     </select>
-    <button class="btn coral" id="publish">새 리포트 발행</button>`);
+    <button class="btn coral" id="publish">리포트 초안 만들기</button>`);
 
   ctx.actionsEl.querySelector('#period').onchange = (e) => {
     const [y, q] = e.target.value.split('-');
@@ -29,7 +32,7 @@ export async function render(root, ctx) {
 
   root.innerHTML = `
     <div class="report-hero">
-      <h3>${esc(draft.title)}</h3>
+      <h3>${esc(draft.title)} ${badge(draft.delivery.label, 'coral')}</h3>
       <p>${esc(draft.subtitle)} · ${esc(draft.period.start)} ~ ${esc(draft.period.end)}</p>
       <div class="stats">
         ${draft.stats.map((s) => `
@@ -42,19 +45,19 @@ export async function render(root, ctx) {
 
     <div class="grid grid-3-2">
       <div class="card">
-        <div class="card-h"><h2>발행 이력</h2></div>
+        <div class="card-h"><h2>초안 이력</h2></div>
         <div class="card-b">
           ${data.history.length ? data.history.map((h) => `
             <div class="flex" style="padding:11px 0;border-bottom:1px solid var(--line-soft)">
               <div class="flex-col">
                 <span class="strong">${esc(h.title)}</span>
-                <span class="muted" style="font-size:12px">수신 ${num(h.recipient_count)}명 ·
-                  ${esc((h.published_at || '').slice(0, 10))}</span>
+                <span class="muted" style="font-size:12px">수신 대상 ${num(h.recipient_count)}명 ·
+                  ${esc((h.created_at || '').slice(0, 10))} 작성</span>
               </div>
               <span class="spacer"></span>
-              ${badge(h.status, 'navy')}
+              ${badge(h.status, 'warning')}
             </div>`).join('')
-          : '<div class="empty">아직 발행한 리포트가 없습니다</div>'}
+          : '<div class="empty">아직 만든 초안이 없습니다</div>'}
 
           <div class="flex" style="padding:11px 0">
             <div class="flex-col">
@@ -88,32 +91,40 @@ export async function render(root, ctx) {
     </div>
 
     <div class="note">
-      리포트는 기관 템플릿에 약정 집계를 채워 만듭니다. 실제 발송(이메일·알림톡)은 기관 채널 연동 후 붙습니다.
+      <b style="color:var(--ink)">아직 기부자에게 아무것도 보내지 않습니다.</b>
+      ${esc(draft.delivery.note)}
+      초안을 만들면 수신 대상과 작성 시각만 이력에 남고, 상태는 <b>발송 대기</b>가 됩니다.<br>
+      후원금·참여 기부자는 <b>이 분기에 실제로 들어온 돈</b>만 셉니다.
+      유산기부는 사후 이행이라 여기서 빠지고, 유산 약정 화면에서 따로 관리합니다.
     </div>`;
 
   root.querySelector('#receipts').onclick = () => openReceipts(data.receipts);
 
   ctx.actionsEl.querySelector('#publish').onclick = () => {
     modal({
-      title: `${draft.title} 발행`,
+      title: `${draft.title} 초안 만들기`,
       body: `
-        <p class="muted" style="margin-bottom:14px">
-          수신 대상 ${num(draft.recipient_count)}명에게 발행합니다. 발행 후에는 이력에 남습니다.
-        </p>
+        <div class="note" style="margin:0 0 14px">
+          <b style="color:var(--ink)">발송하지 않습니다.</b>
+          ${esc(draft.delivery.note)} 지금은 아래 숫자를 이력에 남기기만 합니다.
+        </div>
         <table><tbody>
           ${draft.stats.map((s) => `
             <tr><td class="muted" style="width:120px">${esc(s.label)}</td>
                 <td class="strong">${num(s.value)}${esc(s.unit)}</td></tr>`).join('')}
+          <tr><td class="muted">수신 대상</td>
+              <td class="strong">${num(draft.recipient_count)}명
+                <span class="muted" style="font-size:12px">— 이 분기에 입금이 확인된 기부자</span></td></tr>
         </tbody></table>`,
       footer: `<button class="btn" data-close>취소</button>
-               <button class="btn primary" id="do-publish">발행하기</button>`,
+               <button class="btn primary" id="do-publish">초안 만들기</button>`,
       onMount: (bg, close) => {
         bg.querySelector('#do-publish').onclick = async (e) => {
           const btn = e.currentTarget;
           btn.disabled = true;
-          btn.textContent = '발행 중…';
+          btn.textContent = '만드는 중…';
           try {
-            const res = await api.post('/api/reports/publish', {
+            const res = await api.post('/api/reports/draft', {
               year: draft.year, quarter: draft.quarter,
             });
             toast(res.message);
@@ -122,7 +133,7 @@ export async function render(root, ctx) {
           } catch (err) {
             toast(err.message, 'error');
             btn.disabled = false;
-            btn.textContent = '발행하기';
+            btn.textContent = '초안 만들기';
           }
         };
       },

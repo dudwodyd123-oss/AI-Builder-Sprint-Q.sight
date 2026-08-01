@@ -200,6 +200,8 @@ def agreement_installments(documents: list[dict], document_id: str,
             "proof_kind": inst.get("proof_kind") or ("영수증" if inst.get("proof_id") else None),
             "status": status,
             "tone": tone,
+            # 확정할 때 남긴 날짜 경고. 표에서 계속 눈에 띄어야 한다.
+            "warnings": inst.get("warnings") or [],
         })
     return {
         "document_id": doc["id"],
@@ -397,9 +399,28 @@ def open_installments(documents: list[dict], today: date | None = None) -> list[
     return out[:MAX_MANUAL_OPTIONS]
 
 
+def date_warnings(paid: date, due: date | None, start: date | None) -> list[str]:
+    """이행일이 이상해 보이는 경우를 문장으로 만든다.
+
+    증빙에서 뽑은 날짜는 엉뚱할 수 있다(영수증 이미지의 다른 날짜를 읽는 경우).
+    다만 미리 내는 것 자체는 정상이라 막지 않는다. 대신 확정할 때 알리고
+    회차에도 남겨서, 나중에 표를 볼 때까지 계속 눈에 띄게 한다.
+    """
+    out = []
+    if start and paid < start:
+        out.append(f"이행일이 약정 시작일({start.isoformat()})보다 "
+                   f"{(start - paid).days}일 앞섭니다. 증빙에서 읽은 날짜가 맞는지 확인해주세요.")
+    elif due and paid < due:
+        out.append(f"이행일이 예정일({due.isoformat()})보다 {(due - paid).days}일 앞섭니다.")
+    return out
+
+
 def confirm(documents: list[dict], document_id: str, no: int, paid_date: str,
-            proof: dict, matched_by: str = "auto") -> dict:
-    """회차를 이행 완료로 기록한다. 결과는 data/fulfillment.json에 남는다."""
+            proof: dict, matched_by: str = "auto") -> tuple[dict, list[str]]:
+    """회차를 이행 완료로 기록한다. 결과는 data/fulfillment.json에 남는다.
+
+    반환: (기록된 회차, 경고 문장들)
+    """
     doc = next((d for d in documents if d["id"] == document_id), None)
     if not doc:
         raise ValueError(f"약정 문서를 찾을 수 없습니다: {document_id}")
@@ -412,17 +433,12 @@ def confirm(documents: list[dict], document_id: str, no: int, paid_date: str,
     due = _d(target["due_date"])
     paid = _d(paid_date) or date.today()
 
-    # 증빙에서 뽑은 날짜가 엉뚱할 수 있다(영수증 이미지의 다른 날짜를 읽는 경우).
-    # 약정이 시작되기도 전의 이행은 성립하지 않으므로 막는다. 이걸 그대로 받으면
-    # "이번 달 실제 수입" 같은 집계가 조용히 틀어진다.
-    start = _d(doc["derived"].get("start_date"))
-    if start and paid < start:
-        raise ValueError(
-            f"이행일({paid.isoformat()})이 약정 시작일({start.isoformat()})보다 앞섭니다. "
-            "증빙에서 읽은 날짜가 맞는지 확인해주세요."
-        )
+    # 앞선 날짜는 경고로 알리고 기록은 남긴다. 아직 오지 않은 날짜는 기록 자체가
+    # 성립하지 않으므로 막는다.
     if paid > date.today():
         raise ValueError(f"이행일({paid.isoformat()})이 미래입니다. 날짜를 확인해주세요.")
+
+    warnings = date_warnings(paid, due, _d(doc["derived"].get("start_date")))
 
     target["paid_date"] = paid.isoformat()
     target["status"] = "완료" if due and (paid - due).days <= 5 else "지연 완료"
@@ -430,9 +446,11 @@ def confirm(documents: list[dict], document_id: str, no: int, paid_date: str,
     target["proof_kind"] = proof.get("document_kind") or "영수증"
     target["matched_by"] = matched_by
     target["confirmed_at"] = datetime.now().isoformat(timespec="seconds")
+    # 확정 순간의 토스트는 사라진다. 표에서 계속 보이도록 회차에 남긴다.
+    target["warnings"] = warnings
 
     store.upsert(
         "fulfillment",
         {"id": document_id, "document_id": document_id, "installments": installments},
     )
-    return target
+    return target, warnings

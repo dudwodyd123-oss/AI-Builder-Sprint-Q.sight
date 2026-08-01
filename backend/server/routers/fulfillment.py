@@ -157,12 +157,14 @@ async def confirm_batch(body: ConfirmBatchRequest):
         raise HTTPException(400, "확정할 항목이 없습니다.")
 
     docs = await donations.load_documents()
-    done, failed = [], []
+    done, failed, warnings = [], [], []
     for item in body.items:
         try:
-            svc.confirm(docs, item.document_id, item.no, item.paid_date, item.proof,
-                        matched_by=item.proof.get("matched_by", "manual"))
+            _, warned = svc.confirm(docs, item.document_id, item.no, item.paid_date, item.proof,
+                                    matched_by=item.proof.get("matched_by", "manual"))
             done.append({"document_id": item.document_id, "no": item.no})
+            warnings += [{"document_id": item.document_id, "no": item.no, "message": w}
+                         for w in warned]
         except ValueError as e:
             failed.append({"document_id": item.document_id, "no": item.no, "error": str(e)})
         # 확정한 내용이 다음 항목 판단에 반영되도록 다시 읽는다.
@@ -171,8 +173,10 @@ async def confirm_batch(body: ConfirmBatchRequest):
     return {
         "confirmed": len(done),
         "failed": failed,
+        "warnings": warnings,
         "message": f"{len(done)}건을 이행 완료로 기록했습니다."
-                   + (f" {len(failed)}건은 실패했습니다." if failed else ""),
+                   + (f" {len(failed)}건은 실패했습니다." if failed else "")
+                   + (f" {len(warnings)}건은 날짜를 확인해주세요." if warnings else ""),
     }
 
 
@@ -181,10 +185,14 @@ async def confirm(body: ConfirmRequest):
     """회차 이행을 확정한다(자동 매칭 결과 승인 또는 수동 선택)."""
     docs = await donations.load_documents()
     try:
-        row = svc.confirm(
+        row, warnings = svc.confirm(
             docs, body.document_id, body.no, body.paid_date, body.proof,
             matched_by=body.proof.get("matched_by", "manual"),
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
-    return {"installment": row, "message": f"{body.no}회차를 이행 완료로 기록했습니다."}
+    return {
+        "installment": row,
+        "warnings": warnings,
+        "message": f"{body.no}회차를 이행 완료로 기록했습니다.",
+    }

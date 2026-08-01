@@ -93,6 +93,20 @@ function parseHash() {
   return { route: null, params: {}, search, path };
 }
 
+// 화면을 그릴 때마다 본문 컨테이너를 새로 만든다.
+//
+// innerHTML만 갈아끼우면 엘리먼트는 그대로라, 화면이 root에 붙여 둔 이벤트
+// 리스너가 계속 쌓인다. 같은 화면에 세 번 들어오면 클릭 한 번에 창이 세 번 뜬다.
+// 엘리먼트를 통째로 갈면 옛 리스너도 함께 사라진다.
+function freshContent() {
+  const old = document.getElementById('content');
+  const el = document.createElement('div');
+  el.id = old.id;
+  el.className = old.className;
+  old.replaceWith(el);
+  return el;
+}
+
 function setActiveNav(key) {
   document.querySelectorAll('#nav a').forEach((a) => {
     a.classList.toggle('on', a.dataset.nav === key);
@@ -103,7 +117,7 @@ let renderToken = 0;
 
 async function render() {
   const { route, params, search, path } = parseHash();
-  const content = document.getElementById('content');
+  const content = freshContent();
   const titleEl = document.getElementById('page-title');
   const tagEl = document.getElementById('screen-tag');
   const actionsEl = document.getElementById('page-actions');

@@ -26,9 +26,11 @@ PROGRAMS = [
         "goal_amount": 30_000_000,
         "start_date": "2026-03-01",
         "end_date": "2026-12-31",
-        "methods": ["정기", "일시", "봉사"],
+        "methods": ["정기", "일시", "봉사", "유산"],
         "reward": "금정산 트레킹 이용권 외 2건",
         "template_id": "tpl_regular",
+        # 유산기부는 서식이 따로다. 이 값이 없으면 유산기부 접수를 받지 않는 사업이다.
+        "legacy_template_id": "tpl_legacy",
         "tags": ["문화재", "보존", "정기", "부산 금정구"],
         "description": "금정산성 성곽 보수와 주변 정비를 위한 상시 모금 사업입니다.",
     },
@@ -65,6 +67,7 @@ PROGRAMS = [
         "methods": ["정기", "봉사", "유산"],
         "reward": "감사패 · 연간 리포트",
         "template_id": "tpl_regular",
+        "legacy_template_id": "tpl_legacy",
         "tags": ["교육", "청소년", "봉사"],
         "description": "지역 청소년 대상 문화유산 체험 교육 프로그램 운영비를 모읍니다.",
     },
@@ -111,15 +114,48 @@ TEMPLATES = [
             {"key": "sign_donor", "label": "서명란 · 참여자", "type": "sign", "assignee": "기부자"},
         ],
     },
+    # 유산기부는 사후에 남기는 기부라 회차 금액·납부 주기·약정 기간을 묻지 않는다.
+    # 대신 "무엇을 얼마나 남길지"를 특정한다.
+    #
+    # key 이름은 개인용 웹의 legacy-spec.json과 맞춰 두었다. 같은 key는 챗봇이
+    # 한 번만 묻고 값을 공유하므로, 이름이 어긋나면 같은 걸 두 번 묻게 된다.
+    #
+    # 입회인 서명란은 넣지 않는다. 지금 약정 생성은 모두싸인 참여자를 기부자 1명만
+    # 보내고, 증인은 개인용 웹의 녹음 단계에서 따로 관리한다.
     {
         "id": "tpl_legacy",
         "name": "유산기부 의향 확인서",
-        "updated_at": "2026-06-11",
+        "updated_at": "2026-07-31",
         "fields": [
-            {"key": "donor_name", "label": "기부자 성명", "type": "text", "assignee": "기부자"},
-            {"key": "asset_type", "label": "자산 유형", "type": "select", "assignee": "기부자"},
+            {"key": "donor_name", "label": "기부자 성명", "type": "text",
+             "assignee": "기부자", "required": True},
+            {"key": "donor_birth", "label": "생년월일", "type": "date",
+             "assignee": "기부자", "required": True},
+            {"key": "donor_address", "label": "주소", "type": "text",
+             "assignee": "기부자", "required": False},
+            {"key": "program_name", "label": "대상 사업", "type": "select", "assignee": "담당자"},
+            # 보기 문구는 개인용 legacy-spec.json의 bequest_types 라벨과 정확히 같아야 한다.
+            # 개인용이 라벨로 재산 특정 방식을 찾아 대본의 유언 취지 문장을 만든다.
+            {"key": "bequest_type", "label": "재산을 특정하는 방식", "type": "select",
+             "assignee": "기부자", "required": True,
+             "options": ["상속재산의 비율", "정해진 금액", "특정 재산",
+                         "남은 재산 전부", "남은 재산의 일부"]},
+            # 비율·금액·재산 표시를 사람이 읽는 한 줄로 받는다("상속재산의 10퍼센트").
+            # 하위 항목을 서식이 각각 갖지 않아도 되도록 개인용이 문구를 만들어 보낸다.
+            {"key": "bequest_detail", "label": "특정 내용", "type": "text",
+             "assignee": "기부자", "required": True},
+            {"key": "purpose_note", "label": "용도 지정", "type": "text",
+             "assignee": "기부자", "required": False},
+            {"key": "condition", "label": "조건", "type": "text",
+             "assignee": "기부자", "required": False},
+            {"key": "executor", "label": "유언집행자", "type": "text",
+             "assignee": "기부자", "required": False},
+            {"key": "contact", "label": "연락처", "type": "text",
+             "assignee": "기부자", "required": True},
+            {"key": "motivation", "label": "기부 동기", "type": "textarea",
+             "assignee": "기부자", "required": False},
+            {"key": "privacy_required", "label": "개인정보(필수)", "type": "check", "assignee": "기부자"},
             {"key": "sign_donor", "label": "서명란 · 기부자", "type": "sign", "assignee": "기부자"},
-            {"key": "sign_witness", "label": "서명란 · 입회인", "type": "sign", "assignee": "입회인"},
         ],
     },
 ]

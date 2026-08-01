@@ -9,7 +9,9 @@ import * as w3 from './views/w3_at_risk.js';
 import * as w4 from './views/w4_detail.js';
 import * as w5 from './views/w5_form_parse.js';
 import * as w6 from './views/w6_template_editor.js';
+import * as w7list from './views/w7_programs.js';
 import * as w7 from './views/w7_program_new.js';
+import * as w7detail from './views/w7_program_detail.js';
 import * as w8 from './views/w8_fulfillment.js';
 import * as w9 from './views/w9_reports.js';
 
@@ -18,21 +20,25 @@ const NAV = [
   { key: 'dashboard', label: '대시보드', href: '#/dashboard' },
   { key: 'donations', label: '기부 현황', href: '#/donations' },
   { key: 'fulfillment', label: '이행 관리', href: '#/fulfillment' },
-  // 서식은 사업에 연결해 쓰는 것이라 같은 메뉴 아래에 두고 화면 안에서 전환한다.
-  { key: 'programs', label: '모금 사업', href: '#/programs/new' },
+  { key: 'programs', label: '모금 사업', href: '#/programs' },
+  // 서식은 사업에 연결해 쓰지만, 만들고 고치는 일이 잦아 따로 꺼내 둔다.
+  { key: 'templates', label: '계약서 서식', href: '#/templates/new' },
   { key: 'reports', label: '리포트', href: '#/reports' },
   { key: 'settings', label: '설정', href: '#/settings' },
 ];
 
 // 경로 패턴 → 화면 모듈
+// /programs/new 가 /programs/:id 보다 먼저 와야 한다(new를 id로 잡으면 안 된다).
 const ROUTES = [
   { re: /^\/dashboard$/, view: w1, nav: 'dashboard' },
   { re: /^\/donations$/, view: w2, nav: 'donations' },
   { re: /^\/donations\/at-risk$/, view: w3, nav: 'donations' },
   { re: /^\/donations\/([\w-]+)$/, view: w4, nav: 'donations', params: ['documentId'] },
-  { re: /^\/templates\/new$/, view: w5, nav: 'programs' },
-  { re: /^\/templates\/([\w-]+)\/edit$/, view: w6, nav: 'programs', params: ['templateId'] },
+  { re: /^\/templates\/new$/, view: w5, nav: 'templates' },
+  { re: /^\/templates\/([\w-]+)\/edit$/, view: w6, nav: 'templates', params: ['templateId'] },
+  { re: /^\/programs$/, view: w7list, nav: 'programs' },
   { re: /^\/programs\/new$/, view: w7, nav: 'programs' },
+  { re: /^\/programs\/([\w-]+)$/, view: w7detail, nav: 'programs', params: ['programId'] },
   { re: /^\/fulfillment$/, view: w8, nav: 'fulfillment' },
   { re: /^\/reports$/, view: w9, nav: 'reports' },
 ];

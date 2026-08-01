@@ -198,6 +198,7 @@ def to_row(doc: dict) -> dict:
         "type": doc["donation"]["type"],
         "amount": doc["donation"]["amount"],
         "frequency": doc["donation"]["frequency"],
+        "program_id": doc["donation"].get("program_id"),
         "program_name": doc["donation"]["program_name"],
         "next_due": d["next_due_date"],
         "status": d["board_status"],

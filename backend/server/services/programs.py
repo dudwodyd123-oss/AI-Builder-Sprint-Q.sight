@@ -52,6 +52,10 @@ def create(payload: dict) -> dict:
         "methods": payload.get("methods") or ["정기", "일시"],
         "reward": payload.get("reward", ""),
         "template_id": payload.get("template_id") or "tpl_regular",
+        # 유산기부용 서식. 비어 있으면 그 사업은 유산기부를 받지 않는다.
+        # 기본 서식으로 대신하면 유산기부자에게 회차 금액·납부 주기를 묻게 되므로
+        # 슬쩍 대체하지 않고 명시적으로 비워 둔다.
+        "legacy_template_id": payload.get("legacy_template_id") or None,
         "description": payload.get("description", ""),
         "tags": payload.get("tags") or suggest_tags(
             f"{payload['name']} {payload.get('description', '')}"

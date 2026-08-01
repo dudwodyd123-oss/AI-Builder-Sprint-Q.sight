@@ -23,6 +23,13 @@ from .programs import get as get_program
 # 기부자가 직접 채우는 항목만 챗봇이 물어본다.
 DONOR_ROLE = "기부자"
 
+# 기부 유형별로 다른 서식을 쓴다.
+#   default — 정기·일시·봉사. program["template_id"]
+#   legacy  — 유산기부.        program["legacy_template_id"]
+# 유산기부는 회차 금액·납부 주기·약정 기간이 없고 "무엇을 얼마나 남길지"를 특정하므로
+# 같은 사업이라도 서식이 달라야 한다.
+DONATION_TYPES = ("default", "legacy")
+
 # 모두싸인 metadatas로 넘길 키. 이 값들이 있어야 기업용 대시보드 집계가 맞는다.
 # 최대 10개라 새 키를 넣으려면 기존 키를 빼야 한다.
 METADATA_KEYS = [
@@ -44,7 +51,7 @@ _ALIASES = {
 
 
 # ── 계약 항목 스키마 ────────────────────────────────────────
-def contract_form(program_id: str) -> dict:
+def contract_form(program_id: str, donation_type: str = "default") -> dict:
     """사업에 연결된 계약서의 입력 항목을 돌려준다.
 
     항목은 두 갈래로 나뉜다.
@@ -54,17 +61,19 @@ def contract_form(program_id: str) -> dict:
     - fields    : 기부자가 채워야 하는 나머지. 챗봇은 이것만 물어본다.
 
     기관이 서식을 바꾸면 여기 결과가 바뀌고 챗봇 질문도 저절로 따라간다.
+    donation_type이 "legacy"면 사업에 연결된 유산기부 서식을 쓴다.
     """
     program = get_program(program_id)
     if not program:
         raise ValueError(f"모금 사업을 찾을 수 없습니다: {program_id}")
 
-    fields = _resolve_fields(program)
+    fields = _resolve_fields(program, donation_type)
     prefilled, donor_fields = split_fields(fields)
 
     return {
         "program_id": program_id,
         "program_name": program.get("name"),
+        "donation_type": donation_type,
         "ready": bool(donor_fields) or bool(prefilled),
         "schema_version": _schema_version(fields),
         # 기관이 미리 채운 값. 개인용 웹은 그대로 들고 있다가 ③에 되돌려주면 된다.
@@ -73,20 +82,28 @@ def contract_form(program_id: str) -> dict:
             {"key": f["key"], "label": f.get("label"), "value": f.get("value")}
             for f in prefilled
         ],
-        # 챗봇이 물어볼 항목
+        # 챗봇이 물어볼 항목.
+        # required·options는 서식이 직접 정한 값을 우선한다. 유산 서식에는
+        # 조건·용도 지정처럼 선택 항목이 있어서, 비-check을 전부 필수로 두면 안 된다.
         "fields": [
             {
                 "key": f.get("key"),
                 "label": f.get("label"),
                 "type": f.get("type", "text"),
-                "required": f.get("type") != "check",
-                "options": _options(f, program),
+                "required": f.get("required", f.get("type") != "check"),
+                "options": f.get("options") or _options(f, program),
             }
             for f in donor_fields
         ],
-        "note": "" if (donor_fields or prefilled) else
-                "이 사업에 연결된 계약서 서식이 아직 없습니다. 기관이 서식을 등록해야 합니다.",
+        "note": "" if (donor_fields or prefilled) else _empty_note(donation_type),
     }
+
+
+def _empty_note(donation_type: str) -> str:
+    if donation_type == "legacy":
+        return ("이 사업에는 유산기부 서식이 연결되어 있지 않습니다. "
+                "기관이 유산기부 서식을 만들어 사업에 연결해야 합니다.")
+    return "이 사업에 연결된 계약서 서식이 아직 없습니다. 기관이 서식을 등록해야 합니다."
 
 
 def split_fields(fields: list[dict]) -> tuple[list[dict], list[dict]]:
@@ -117,9 +134,28 @@ def _has_value(field: dict) -> bool:
     return str(value or "").strip() != ""
 
 
-def _resolve_fields(program: dict) -> list[dict]:
+def template_id_for(program: dict, donation_type: str = "default") -> str | None:
+    """이 사업이 그 기부 유형에 쓰는 서식 id. 없으면 그 유형은 접수하지 않는다."""
+    return (program.get("legacy_template_id") if donation_type == "legacy"
+            else program.get("template_id"))
+
+
+def template_name(template_id: str | None) -> str | None:
+    """서식 이름. 저장소 → 데모 순으로 찾는다(모두싸인 템플릿은 비동기라 제외)."""
+    if not template_id:
+        return None
+    for row in store.read_list("templates"):
+        if template_id in (row.get("id"), row.get("template_id")):
+            return row.get("name")
+    from ..clients.mock_data import TEMPLATES
+    return next((t["name"] for t in TEMPLATES if t["id"] == template_id), None)
+
+
+def _resolve_fields(program: dict, donation_type: str = "default") -> list[dict]:
     """사업 → 템플릿 → 항목 목록. 여러 곳에 흩어져 있어 순서대로 찾는다."""
-    template_id = program.get("template_id")
+    template_id = template_id_for(program, donation_type)
+    if not template_id:
+        return []
 
     # 1) W6에서 저장하며 연결한 템플릿
     for row in store.read_list("templates"):
@@ -162,7 +198,8 @@ def _schema_version(fields: list[dict]) -> str:
 
 
 # ── 약정 체결 ──────────────────────────────────────────────
-async def create(program_id: str, values: dict, signer: dict) -> dict:
+async def create(program_id: str, values: dict, signer: dict,
+                 donation_type: str = "default") -> dict:
     """PDF를 만들고 모두싸인으로 서명 요청을 보낸다.
 
     ⚠️ 이 함수는 서명자에게 실제 이메일을 발송한다.
@@ -179,7 +216,13 @@ async def create(program_id: str, values: dict, signer: dict) -> dict:
     if not (signer.get("email") or "").strip():
         raise ValueError("서명자 이메일이 필요합니다.")
 
-    fields = _resolve_fields(program)
+    fields = _resolve_fields(program, donation_type)
+    if not fields:
+        raise ValueError(
+            f"'{program.get('name')}' 사업에는 유산기부 서식이 연결되어 있지 않습니다."
+            if donation_type == "legacy"
+            else f"'{program.get('name')}' 사업에 연결된 계약서 서식이 없습니다."
+        )
     missing = missing_fields(fields, values)
     if missing:
         raise ValueError(f"아직 비어 있는 항목이 있습니다: {', '.join(missing)}")
@@ -196,7 +239,7 @@ async def create(program_id: str, values: dict, signer: dict) -> dict:
             title=title,
             pdf_base64=pdf_base64,
             signer=signer,
-            metadatas=_metadatas(program, merged),
+            metadatas=_metadatas(program, merged, donation_type),
             anchor_text=SIGN_ANCHOR,
         )
     except ModusignError as e:
@@ -206,6 +249,7 @@ async def create(program_id: str, values: dict, signer: dict) -> dict:
         "id": store.next_id("agreements", "agr"),
         "program_id": program_id,
         "program_name": program.get("name"),
+        "donation_type": donation_type,
         "document_id": result.get("id"),
         "signer_name": signer["name"],
         "signer_email": signer["email"],
@@ -222,11 +266,12 @@ def missing_fields(fields: list[dict], values: dict) -> list[str]:
     """스키마와 입력값의 차집합. 챗봇이 '빠진 것'을 판단하는 기준과 같다.
 
     기관이 미리 채운 항목은 기부자가 안 보내도 빠진 것이 아니다.
+    서식이 required: false로 정한 항목(유산 서식의 조건·용도 지정 등)도 마찬가지다.
     """
     _, donor_fields = split_fields(fields)
     out = []
     for f in donor_fields:
-        if f.get("type") == "check":
+        if not f.get("required", f.get("type") != "check"):
             continue
         if not str(values.get(f.get("key"), "")).strip():
             out.append(f.get("label") or f.get("key"))
@@ -246,7 +291,7 @@ def merge_values(fields: list[dict], values: dict) -> dict:
     return merged
 
 
-def _metadatas(program: dict, values: dict) -> dict:
+def _metadatas(program: dict, values: dict, donation_type: str = "default") -> dict:
     """집계에 쓰는 값만 골라 모두싸인 metadatas로 만든다(최대 10개)."""
     today = date.today()
     meta = {
@@ -266,7 +311,11 @@ def _metadatas(program: dict, values: dict) -> dict:
     if months:
         meta["end_date"] = _add_months(today, months).isoformat()
 
-    if "donation_type" not in meta:
+    # 유산은 납부 주기가 없어서 추론에 맡기면 "일시"로 떨어진다. W1 유형 분포가
+    # 어긋나므로 명시한다. 서식이 보낸 값보다 우선한다.
+    if donation_type == "legacy":
+        meta["donation_type"] = "유산"
+    elif "donation_type" not in meta:
         freq = str(meta.get("frequency", ""))
         meta["donation_type"] = "정기" if freq in ("월", "연") else "일시"
     meta.setdefault("receipt_required", "true")

@@ -1,21 +1,20 @@
 // W7 모금 사업 등록 — 공고문 자동 채우기 + 추천 태그
+//
+// 목록은 #/programs가 맡는다. 이 화면은 새 사업을 만들 때만 들어온다.
 
 import { api } from '../api.js';
-import { badge, esc, num, pct, programSegment, progressBar, toast, won } from '../ui.js';
+import { esc, toast } from '../ui.js';
 
-export const TITLE = '모금 사업 등록';
+export const TITLE = '모금 사업 추가';
 export const SCREEN = 'W7';
 
 const METHODS = ['정기', '일시', '봉사', '유산'];
 
 export async function render(root, ctx) {
-  const [templates, programs] = await Promise.all([
-    api.get('/api/templates'),
-    api.get('/api/programs?with_progress=true'),
-  ]);
+  const templates = await api.get('/api/templates');
 
   ctx.setActions(`
-    ${programSegment('programs')}
+    <a class="btn" href="#/programs">목록</a>
     <button class="btn" id="autofill">공고문 올려서 자동 채우기</button>
     <input type="file" id="notice" accept=".pdf,.png,.jpg,.jpeg,.hwp,.docx" hidden>`);
 
@@ -42,6 +41,20 @@ export async function render(root, ctx) {
                   ${templates.rows.map((t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}
                 </select>
               </div>
+            </div>
+
+            <div class="field">
+              <label for="f-legacy-template">
+                유산기부 서식
+                <span class="muted" style="font-weight:400">— 비워두면 유산기부를 받지 않습니다</span>
+              </label>
+              <select id="f-legacy-template" name="legacy_template_id">
+                <option value="">유산기부 받지 않음</option>
+                ${templates.rows.map((t) => `
+                  <option value="${esc(t.id)}">
+                    ${esc(t.name)}${t.origin === 'demo' ? ' (기본 제공)' : ''}
+                  </option>`).join('')}
+              </select>
             </div>
 
             <div class="field-row">
@@ -94,12 +107,26 @@ export async function render(root, ctx) {
       </div>
 
       <div class="card">
-        <div class="card-h"><h2>등록된 모금 사업</h2><span class="spacer"></span>
-          <span class="muted" style="font-size:12px">
-            진행 ${programs.rows.filter((p) => p.status !== 'archived').length} ·
-            보관 ${programs.rows.filter((p) => p.status === 'archived').length}</span></div>
-        <div class="card-b flex-col" style="gap:16px" id="program-list">
-          ${programs.rows.map(programCard).join('')}
+        <div class="card-h"><h2>서식 연결 안내</h2></div>
+        <div class="card-b">
+          <div class="note" style="margin:0 0 14px">
+            <b style="color:var(--ink)">기부 유형마다 서식이 다릅니다.</b><br>
+            <b>연결 템플릿</b>은 정기·일시·봉사 기부에,
+            <b>유산기부 서식</b>은 유산기부에만 쓰입니다.
+          </div>
+          <p class="muted" style="font-size:12.5px;line-height:1.8;margin:0 0 14px">
+            유산기부는 사후에 남기는 기부라 회차 금액·납부 주기를 묻지 않고,
+            <b>무엇을 얼마나 남길지</b>를 특정합니다. 그래서 같은 사업이라도
+            서식을 따로 둡니다. 연결하지 않으면 그 사업은 유산기부를 받지 않습니다.
+          </p>
+          <p class="muted" style="font-size:12.5px;line-height:1.8;margin:0">
+            쓸 서식이 없으면 <a href="#/templates/new">계약서 서식</a>에서
+            빈 양식을 올려 항목을 뽑거나 직접 만든 뒤 여기로 돌아오세요.
+            등록한 뒤에도 사업 상세에서 언제든 바꿀 수 있습니다.
+          </p>
+          <a class="btn" href="#/templates/new"
+             style="margin-top:14px;display:flex;justify-content:center">
+            계약서 서식 만들러 가기</a>
         </div>
       </div>
     </div>
@@ -152,11 +179,13 @@ export async function render(root, ctx) {
         methods,
         reward: form.reward.value.trim(),
         template_id: form.template_id.value,
+        legacy_template_id: form.legacy_template_id.value || null,
         description: form.description.value.trim(),
         tags,
       });
       toast(`'${res.program.name}' 사업을 등록했습니다.`);
-      ctx.reload();
+      // 등록하자마자 상세로 보낸다. 서식 연결을 바로 확인할 수 있다.
+      ctx.navigate(`/programs/${res.program.id}`);
     } catch (err) {
       toast(err.message, 'error');
       btn.disabled = false;
@@ -165,22 +194,6 @@ export async function render(root, ctx) {
   };
 
   root.querySelector('#reset').onclick = () => { form.reset(); tags = []; paintTags(); };
-
-  // 사업 보관 / 재개 — 보관하면 기부자 화면 목록에서 빠진다.
-  root.querySelector('#program-list').addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-archive]');
-    if (!btn) return;
-    btn.disabled = true;
-    try {
-      const res = await api.put(`/api/programs/${encodeURIComponent(btn.dataset.archive)}/status`,
-                                { status: btn.dataset.next });
-      toast(res.message);
-      ctx.reload();
-    } catch (err) {
-      toast(err.message, 'error');
-      btn.disabled = false;
-    }
-  });
 
   // 공고문 자동 채우기
   const noticeInput = ctx.actionsEl.querySelector('#notice');
@@ -214,31 +227,4 @@ export async function render(root, ctx) {
   };
 
   paintTags();
-}
-
-function programCard(p) {
-  const archived = p.status === 'archived';
-  return `
-    <div style="${archived ? 'opacity:.62' : ''}">
-      <div class="flex">
-        <span class="strong">${esc(p.name)}</span>
-        ${archived ? badge('보관됨', 'muted') : ''}
-        <span class="spacer"></span>
-        <span class="muted" style="font-size:12px">${num(p.donor_count)}명 참여</span>
-        <button class="btn sm" data-archive="${esc(p.id)}"
-                data-next="${archived ? 'active' : 'archived'}">
-          ${archived ? '다시 진행' : '보관'}
-        </button>
-      </div>
-      <div class="flex" style="margin:7px 0 5px">
-        <div style="flex:1">${progressBar(p.rate, p.rate < 40)}</div>
-        <span class="strong nowrap" style="font-size:12.5px">${pct(p.rate)}</span>
-      </div>
-      <div class="muted" style="font-size:12px">
-        ${won(p.raised_amount)} / ${won(p.goal_amount)} · ${esc(p.start_date)} ~ ${esc(p.end_date)}
-      </div>
-      <div class="flex" style="flex-wrap:wrap;margin-top:7px">
-        ${(p.tags || []).map((t) => `<span class="chip tag" style="font-size:11.5px">${esc(t)}</span>`).join('')}
-      </div>
-    </div>`;
 }

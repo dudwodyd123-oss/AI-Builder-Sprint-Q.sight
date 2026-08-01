@@ -1,0 +1,1118 @@
+:root {
+  --navy: #16213e;
+  --navy-light: #202d52;
+  --navy-lighter: #2b3a67;
+  --accent: #ff7a45;
+  --accent-dark: #e85d2f;
+  --accent-soft: #ffe7dc;
+  --bg: #f5f6fa;
+  --surface: #ffffff;
+  --border: #e2e5ee;
+  --text: #16213e;
+  --text-muted: #5b6072;
+  --text-faint: #9aa0b4;
+  --success: #2fbf71;
+  --success-soft: #e6f8ef;
+  --danger: #e5484d;
+  --danger-soft: #fdecec;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 20px rgba(22, 33, 62, 0.06);
+  --shadow-lg: 0 12px 32px rgba(22, 33, 62, 0.12);
+  font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* ---------- App shell ---------- */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--navy);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 18px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.sidebar-logo {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  padding: 0 10px 28px;
+  color: #fff;
+}
+
+.sidebar-logo span {
+  color: var(--accent);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14.5px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.sidebar-link.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 14px 10px 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.main-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 36px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.topbar-title {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.topbar-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.page-content {
+  flex: 1;
+  padding: 32px 36px 60px;
+  max-width: 980px;
+  width: 100%;
+}
+
+.page-content.wide {
+  max-width: 1120px;
+}
+
+/* ---------- Fullscreen (onboarding) ---------- */
+.fullscreen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--navy) 0%, #1c2a4d 55%, var(--navy-lighter) 100%);
+  padding: 24px;
+}
+
+/* ---------- Card ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 26px 28px;
+}
+
+.card + .card {
+  margin-top: 18px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.card-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 18px;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 10px;
+  font-size: 14.5px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.08s ease, opacity 0.15s ease, background 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+
+.btn-secondary {
+  background: var(--navy);
+  color: #fff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--navy-light);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-lg {
+  padding: 15px 26px;
+  font-size: 16px;
+}
+
+/* ---------- Forms ---------- */
+.field {
+  margin-bottom: 18px;
+}
+
+.field label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 14.5px;
+  color: var(--text);
+  background: #fff;
+  font-family: inherit;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--text-faint);
+  margin-top: 6px;
+}
+
+/* ---------- Choice cards ---------- */
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.choice-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 26px 22px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  text-align: left;
+}
+
+.choice-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.choice-card .icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 14px;
+}
+
+.choice-card h3 {
+  margin: 0 0 6px;
+  font-size: 16.5px;
+}
+
+.choice-card p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ---------- Step indicator ---------- */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 26px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.step.active .step-dot {
+  background: var(--accent);
+  color: #fff;
+}
+
+.step.done .step-dot {
+  background: var(--success);
+  color: #fff;
+}
+
+.step-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.step.active .step-label,
+.step.done .step-label {
+  color: var(--text);
+}
+
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  margin: 0 10px;
+}
+
+.step.done + .step-line-wrap .step-line,
+.step-line.done {
+  background: var(--success);
+}
+
+/* ---------- Badge / status ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge-pending {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.badge-success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.badge-muted {
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+/* ---------- Checklist (챗봇이 수집할 항목) ---------- */
+.checklist {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 14px 16px 16px;
+  margin-bottom: 4px;
+}
+
+.checklist-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.checklist-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+  margin: 12px 0 14px;
+}
+
+.checklist-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.35s ease, background 0.25s ease;
+}
+
+.checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 8px 18px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--text-faint);
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.checklist-mark {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: transparent;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.checklist-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checklist-tag {
+  margin-left: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+}
+
+.checklist-value {
+  margin-left: auto;
+  padding-left: 8px;
+  max-width: 45%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+/* 값이 들어온 항목 */
+.checklist-item.done {
+  color: var(--text);
+}
+
+.checklist-item.done .checklist-mark {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+  animation: check-pop 0.28s ease;
+}
+
+.checklist-item.done .checklist-label {
+  font-weight: 600;
+}
+
+.checklist-item.done .checklist-value {
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* 챗봇이 지금 묻고 있는 항목 */
+.checklist-item.current {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.checklist-item.current .checklist-mark {
+  border-color: var(--accent);
+}
+
+.checklist-item.current .checklist-label {
+  font-weight: 700;
+}
+
+.checklist-item.current .checklist-value {
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+
+.checklist-empty,
+.checklist-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  line-height: 1.6;
+}
+
+.checklist-note {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+@keyframes check-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ---------- Chat ---------- */
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 4px;
+  min-height: 420px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.chat-bubble {
+  max-width: 72%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.chat-bubble.bot {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-bubble.user {
+  background: var(--navy);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.chat-input-row input {
+  flex: 1;
+}
+
+/* ---------- 유산기부 (녹음유언) ---------- */
+.legacy-steps {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px 14px;
+  margin-bottom: 18px;
+}
+
+.legacy-steps-now {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.legacy-flow {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.legacy-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+/* 동의 · 자가확인 체크 목록 */
+.consent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.consent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 14.5px;
+  line-height: 1.6;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.consent-row:hover {
+  border-color: var(--accent);
+}
+
+.consent-row.on {
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+
+.consent-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--success);
+  flex-shrink: 0;
+}
+
+.consent-required {
+  margin-left: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.witness-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+
+.witness-row.bad {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.witness-q {
+  font-size: 14.5px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 220px;
+}
+
+/* 대본 — 고령 사용자를 고려해 큰 글씨가 기본이고 --script-size로 조절한다 */
+.script-sheet {
+  --script-size: 26px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 30px 32px;
+  margin-top: 18px;
+}
+
+.script-head {
+  padding-bottom: 14px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.script-block {
+  padding: 18px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.script-block:last-of-type {
+  border-bottom: none;
+}
+
+.script-block.witness {
+  padding-left: 16px;
+  border-left: 3px solid var(--border);
+}
+
+.script-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.script-lock,
+.script-edited {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-faint);
+}
+
+.script-edited {
+  color: var(--accent-dark);
+}
+
+.script-text {
+  margin: 0;
+  font-size: var(--script-size);
+  line-height: 1.65;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  word-break: keep-all;
+}
+
+.script-text.incomplete {
+  color: var(--danger);
+}
+
+.script-textarea {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--accent);
+  font-family: inherit;
+  font-size: calc(var(--script-size) * 0.7);
+  line-height: 1.6;
+  font-weight: 700;
+  resize: vertical;
+}
+
+.script-foot {
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+/* 녹음 중 — 지금 읽을 문장만 살리고 나머지는 흐린다 */
+.script-sheet.reading .script-block {
+  opacity: 0.35;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.script-sheet.reading .script-block.read {
+  opacity: 0.5;
+}
+
+.script-sheet.reading .script-block.now {
+  opacity: 1;
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 18px;
+  margin: 0 -18px;
+}
+
+.recording-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.recording-dot::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: rec-blink 1.1s ease-in-out infinite;
+}
+
+@keyframes rec-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.legacy-audio {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* 완료 화면에서 읽은 대본 전문 */
+.script-record {
+  margin: 16px 0 0;
+  padding: 16px 18px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  word-break: keep-all;
+}
+
+/* ---------- 다음에 할 일 ---------- */
+/* 버튼만 늘어놓으면 무엇을 눌러야 할지 모른다. 한 줄 설명을 함께 붙인다. */
+.next-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.next-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.next-step:hover {
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+.next-step:active {
+  transform: scale(0.995);
+}
+
+/* 누를 수 없는 안내(메일함에서 서명하기 같은 것) */
+.next-step.as-note {
+  cursor: default;
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+
+.next-step.as-note:hover {
+  border-color: var(--accent-soft);
+  background: var(--accent-soft);
+}
+
+.next-step-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.next-step strong {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.next-step em {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  font-style: normal;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* 인쇄 — 증인도 미리 봐야 하므로 대본만 깔끔하게 남긴다 */
+@media print {
+  .sidebar,
+  .topbar,
+  .legacy-steps,
+  .no-print,
+  .alert {
+    display: none !important;
+  }
+
+  .app-shell,
+  .main-area,
+  .page-content {
+    display: block;
+    padding: 0;
+    max-width: none;
+  }
+
+  .script-sheet {
+    --script-size: 20px;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .script-block {
+    break-inside: avoid;
+  }
+}
+
+/* ---------- Table ---------- */
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.info-table tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.info-table tr:last-child {
+  border-bottom: none;
+}
+
+.info-table th,
+.info-table td {
+  text-align: left;
+  padding: 13px 6px;
+  font-size: 14px;
+}
+
+.info-table th {
+  width: 160px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.info-table td {
+  font-weight: 600;
+}
+
+/* ---------- Misc ---------- */
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gap-12 {
+  display: flex;
+  gap: 12px;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.mt-24 {
+  margin-top: 24px;
+}
+
+.center-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.doc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.doc-row .title {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.doc-row .meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.pdf-preview {
+  width: 100%;
+  height: 560px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+
+.alert-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.alert-info {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}

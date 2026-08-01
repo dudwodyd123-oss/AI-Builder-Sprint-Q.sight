@@ -1,0 +1,285 @@
+{
+  "_comment": [
+    "유산기부 녹음유언 — 법률 검토 대상 파일.",
+    "대본 문안·챗봇 질문·증인 결격 문항·고지 문구는 전부 여기에만 있다.",
+    "이 파일만 고치고 서버를 재시작하면 화면에 반영된다 (프런트 재빌드 불필요).",
+    "단, 법정 요건 태그(requirement) 5종과 review_checklist의 대응은 기동 시 검증되므로",
+    "태그를 지우거나 이름을 바꾸면 서버가 뜨지 않는다. 문안만 고칠 것.",
+    "",
+    "key를 정할 때 주의: 기업용 계약서 서식의 항목과 같은 key를 쓰면 같은 항목으로 합쳐진다.",
+    "donor_name은 일부러 맞춰둔 것이고(성함=기부자 성명), 뜻이 다른 항목은 겹치지 않게 지을 것",
+    "(예: 유증할 금액은 bequest_amount — 기업용의 amount(회차 금액)와 다른 것이므로)."
+  ],
+
+  "version": "2026-07-31.1",
+  "reviewed_by": "미검토",
+  "reviewed_at": null,
+
+  "auto": {
+    "org_name": "부산문화유산지킴이"
+  },
+
+  "_derived_comment": [
+    "기관 유산 서식의 항목 중 코드가 대신 채워주는 것. 챗봇은 이 항목을 묻지 않는다.",
+    "왼쪽이 기관 서식의 key, 오른쪽이 여기서 만들어지는 값의 이름이다.",
+    "기관이 서식의 key를 바꾸면 이 줄만 고치면 된다."
+  ],
+  "derived": {
+    "bequest_detail": "bequest_phrase"
+  },
+
+  "consent": [
+    {
+      "key": "not_a_will",
+      "text": "이 등록만으로는 법적인 유언이 되지 않는다는 점을 이해했습니다.",
+      "required": true
+    },
+    {
+      "key": "revocable",
+      "text": "언제든지 이 의사를 철회할 수 있다는 점을 안내받았습니다.",
+      "required": true
+    },
+    {
+      "key": "third_party_info",
+      "text": "가족·증인 등 제3자의 연락처를 등록하는 데 동의합니다.",
+      "required": true
+    }
+  ],
+
+  "collect": [
+    {
+      "key": "donor_name",
+      "label": "성함",
+      "type": "text",
+      "required": true,
+      "profile": "name"
+    },
+    {
+      "key": "donor_birth",
+      "label": "생년월일",
+      "type": "date",
+      "required": true
+    },
+    {
+      "key": "donor_address",
+      "label": "주소",
+      "type": "text",
+      "required": false
+    },
+    {
+      "key": "bequest_type",
+      "label": "재산을 특정하는 방식",
+      "type": "select",
+      "required": true,
+      "options_from": "bequest_types"
+    },
+    {
+      "key": "purpose_note",
+      "label": "용도 지정",
+      "type": "text",
+      "required": false
+    },
+    {
+      "key": "condition",
+      "label": "조건",
+      "type": "text",
+      "required": false
+    },
+    {
+      "key": "executor",
+      "label": "유언집행자",
+      "type": "text",
+      "required": false
+    }
+  ],
+
+  "bequest_types": [
+    {
+      "value": "share_ratio",
+      "label": "상속재산의 비율",
+      "hint": "재산 가액이 변해도 유언을 다시 쓰지 않아도 됩니다. 가장 권장하는 방식이에요.",
+      "recommended": true,
+      "phrase": "상속재산의 {{share_percent}}퍼센트",
+      "fields": [
+        { "key": "share_percent", "label": "비율(퍼센트)", "type": "number", "required": true }
+      ]
+    },
+    {
+      "value": "fixed_amount",
+      "label": "정해진 금액",
+      "hint": "남길 금액을 직접 정합니다.",
+      "phrase": "금 {{bequest_amount}}원",
+      "fields": [
+        { "key": "bequest_amount", "label": "남길 금액", "type": "number", "required": true }
+      ]
+    },
+    {
+      "value": "specific_asset",
+      "label": "특정 재산",
+      "hint": "부동산·예금·주식처럼 특정할 수 있는 재산을 지정합니다.",
+      "phrase": "{{asset_detail}}",
+      "fields": [
+        {
+          "key": "asset_kind",
+          "label": "재산 종류",
+          "type": "select",
+          "required": true,
+          "options": ["부동산", "예금", "주식", "기타"]
+        },
+        {
+          "key": "asset_detail",
+          "label": "재산을 특정할 수 있는 표시",
+          "type": "text",
+          "required": true,
+          "help": "부동산은 소재지·지번, 예금은 은행명·계좌번호, 주식은 종목·수량을 적습니다."
+        }
+      ]
+    },
+    {
+      "value": "residuary_all",
+      "label": "남은 재산 전부",
+      "hint": "다른 상속·유증을 하고 남은 재산 전부를 남깁니다.",
+      "phrase": "다른 상속과 유증을 하고 남은 재산 전부",
+      "fields": []
+    },
+    {
+      "value": "residuary_share",
+      "label": "남은 재산의 일부",
+      "hint": "남은 재산 중 정한 비율만 남깁니다.",
+      "phrase": "다른 상속과 유증을 하고 남은 재산의 {{residuary_percent}}퍼센트",
+      "fields": [
+        { "key": "residuary_percent", "label": "남은 재산 중 비율(퍼센트)", "type": "number", "required": true }
+      ]
+    },
+    {
+      "value": "insurance",
+      "label": "보험금",
+      "hint": "보험금은 유언이 아니라 보험사에서 수익자를 바꾸는 쪽이 확실합니다.",
+      "redirect": "insurance",
+      "redirect_notice": "보험금은 수익자 지정이 유언과 별개 경로로 처리됩니다. 가입하신 보험사에 연락해 수익자를 기관으로 변경하시는 편이 확실합니다. 그 절차는 이 화면에서 도와드릴 수 없어 담당자 안내로 연결해 드려요.",
+      "fields": []
+    }
+  ],
+
+  "requirement_labels": {
+    "donor_name": "유언자 성명",
+    "date": "연월일",
+    "content": "유언의 취지",
+    "witness_confirm": "증인의 확인",
+    "witness_name": "증인 성명"
+  },
+
+  "script": {
+    "blocks": [
+      {
+        "speaker": "donor",
+        "requirement": "donor_name",
+        "editable": false,
+        "text": "저는 {{donor_name}}입니다."
+      },
+      {
+        "speaker": "donor",
+        "requirement": null,
+        "editable": false,
+        "omit_if_empty": ["donor_birth"],
+        "text": "{{donor_birth}}에 태어났습니다."
+      },
+      {
+        "speaker": "donor",
+        "requirement": null,
+        "editable": false,
+        "omit_if_empty": ["donor_address"],
+        "text": "{{donor_address}}에 살고 있습니다."
+      },
+      {
+        "speaker": "donor",
+        "requirement": "date",
+        "editable": false,
+        "text": "오늘은 {{record_date}}입니다."
+      },
+      {
+        "speaker": "donor",
+        "requirement": "content",
+        "editable": true,
+        "text": "저는 제 재산 중 {{bequest_phrase}}를 {{org_name}}에 유증합니다."
+      },
+      {
+        "speaker": "donor",
+        "requirement": null,
+        "editable": false,
+        "omit_if_empty": ["program_name"],
+        "text": "이 재산은 {{program_name}} 사업에 사용해 주시기 바랍니다."
+      },
+      {
+        "speaker": "donor",
+        "requirement": null,
+        "editable": true,
+        "omit_if_empty": ["purpose_note"],
+        "text": "특히 {{purpose_note}}에 써 주시기 바랍니다."
+      },
+      {
+        "speaker": "donor",
+        "requirement": null,
+        "editable": true,
+        "omit_if_empty": ["condition"],
+        "text": "다만 {{condition}}."
+      },
+      {
+        "speaker": "donor",
+        "requirement": null,
+        "editable": false,
+        "text": "이것은 저의 자유로운 의사에 따른 유언입니다."
+      },
+      {
+        "speaker": "witness",
+        "requirement": "witness_confirm",
+        "editable": false,
+        "text": "저는 이 유언이 정확함을 확인합니다."
+      },
+      {
+        "speaker": "witness",
+        "requirement": "witness_name",
+        "editable": false,
+        "text": "저는 증인 {{witness_name}}입니다."
+      }
+    ]
+  },
+
+  "witness_eligibility": {
+    "questions": [
+      { "key": "adult", "text": "만 19세 이상이십니까?" },
+      { "key": "capacity", "text": "성년후견 또는 한정후견을 받고 계시지 않습니까?" },
+      {
+        "key": "no_interest",
+        "text": "이 기부를 받는 기관의 임직원·관계자이거나, 기부자의 상속인이 아니십니까?"
+      }
+    ],
+    "blocked_notice": "법률상 이 기부로 이익을 받는 쪽이나 상속인은 증인이 될 수 없습니다. 다른 분께 부탁드려 주세요."
+  },
+
+  "review_checklist": [
+    { "key": "donor_name", "label": "유언자가 이름을 말했다" },
+    { "key": "date", "label": "유언자가 오늘 날짜(연·월·일)를 말했다" },
+    { "key": "content", "label": "유언자가 무엇을 누구에게 남길지 말했다" },
+    { "key": "witness_confirm", "label": "증인이 \"정확하다\"고 말했다" },
+    { "key": "witness_name", "label": "증인이 자기 이름을 말했다" }
+  ],
+
+  "notices": {
+    "intro": "이 등록만으로는 유언이 되지 않습니다. 언제든 철회하실 수 있습니다.",
+    "witness": "기관 관계자·상속인은 증인이 될 수 없습니다.",
+    "record": "한 번에 끊지 않고 녹음해 주세요. 중간에 멈추면 처음부터 다시 하셔야 합니다.",
+    "done_result": "법이 요구하는 항목을 모두 말씀하셨습니다. 다만 유언의 최종 효력은 법원이 판단합니다.",
+    "done_next": [
+      "돌아가신 뒤 가정법원의 검인 절차가 필요합니다.",
+      "녹음이 있다는 사실을 가족에게 미리 알려두세요.",
+      "금액이 크다면 공정증서 유언을 함께 남기시길 권합니다."
+    ]
+  },
+
+  "forbidden_phrases": [
+    "유효한 유언이 완성되었습니다",
+    "법적 효력이 발생했습니다",
+    "약정이 체결되었습니다"
+  ]
+}

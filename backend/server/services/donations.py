@@ -11,8 +11,10 @@ from datetime import date, datetime, timedelta
 from .. import store
 from ..clients.modusign import STATUS_LABELS, client
 
-# 이행 지연으로 볼 유예 기간(일)
-GRACE_DAYS = 5
+# 지연 판정에 유예를 두지 않는다.
+# 예전에는 5일 유예가 있었는데, 이행 관리(W8)는 예정일 다음 날부터 "지연 N일"로
+# 표시해서 같은 약정이 기부 현황에서는 "정상"으로 보였다. 화면마다 답이 다르면
+# 담당자가 어느 쪽을 믿어야 할지 알 수 없다. W8과 같은 기준으로 맞춘다.
 
 # 납부 주기별 회차 간격(개월). 여기 없는 주기(일시·유산)는 회차 이행이 없다.
 SCHEDULE_STEPS = {"월": 1, "회": 3, "연": 12}
@@ -134,7 +136,7 @@ def _derive(doc: dict, today: date) -> dict:
         board_status, tone = "취소됨", "muted"
     elif is_expired:
         board_status, tone = "기한 만료", "muted"
-    elif delay_days > GRACE_DAYS:
+    elif delay_days > 0:
         board_status, tone = f"지연 {delay_days}일", "warning"
     else:
         board_status, tone = "정상", "success"

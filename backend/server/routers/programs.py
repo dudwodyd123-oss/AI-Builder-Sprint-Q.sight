@@ -114,6 +114,19 @@ async def update_program(program_id: str, body: ProgramRequest):
         raise HTTPException(404, str(e)) from e
 
 
+@router.delete("/{program_id}")
+async def delete_program(program_id: str):
+    """모금 사업 삭제. 약정이 있으면 막는다(그때는 보관을 쓴다)."""
+    docs = await donations.load_documents()
+    used = sum(1 for d in docs if d["donation"].get("program_id") == program_id)
+    try:
+        program = svc.delete(program_id, used)
+    except ValueError as e:
+        # 찾을 수 없으면 404, 약정이 있어 못 지우는 건 409로 구분한다.
+        raise HTTPException(404 if used == 0 else 409, str(e)) from e
+    return {"program": program, "message": f"'{program['name']}' 사업을 삭제했습니다."}
+
+
 @router.put("/{program_id}/status")
 async def set_status(program_id: str, body: StatusRequest):
     """모금 사업 보관/재개.

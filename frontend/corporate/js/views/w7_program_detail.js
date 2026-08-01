@@ -5,10 +5,12 @@
 // 대신하면 유산기부자에게 회차 금액·납부 주기를 묻게 된다).
 
 import { api } from '../api.js';
-import { badge, esc, num, pct, progressBar, toast, won } from '../ui.js';
+import { badge, esc, modal, num, pct, progressBar, toast, won } from '../ui.js';
 
 export const TITLE = '모금 사업 상세';
 export const SCREEN = 'W7';
+
+const METHODS = ['정기', '일시', '봉사', '유산'];
 
 const FORM_LABEL = {
   default: { title: '기본 신청서 양식', note: '정기 · 일시 · 봉사 기부에 쓰입니다' },
@@ -27,11 +29,15 @@ export async function render(root, ctx) {
   const archived = p.status === 'archived';
 
   ctx.setTitle(p.name);
+  // 보관은 기부자 화면에서만 감추는 것이고, 삭제는 사업 자체를 없앤다.
+  // 성격이 달라 버튼을 나란히 두되 삭제는 약정이 없을 때만 통한다.
   ctx.setActions(`
     <a class="btn" href="#/programs">목록</a>
+    <button class="btn" id="edit">사업 수정</button>
     <button class="btn" id="archive" data-next="${archived ? 'active' : 'archived'}">
       ${archived ? '다시 진행' : '보관'}
-    </button>`);
+    </button>
+    <button class="btn ghost" id="delete">삭제</button>`);
 
   root.innerHTML = `
     <div class="grid grid-4">
@@ -110,6 +116,10 @@ export async function render(root, ctx) {
     if (tr) ctx.navigate(`/donations/${tr.dataset.id}`);
   });
 
+  ctx.actionsEl.querySelector('#edit').onclick = () => openEdit(p, ctx);
+  ctx.actionsEl.querySelector('#delete').onclick = () =>
+    openDelete(p, data.donations.length, ctx);
+
   ctx.actionsEl.querySelector('#archive').onclick = async (e) => {
     const btn = e.currentTarget;
     btn.disabled = true;
@@ -129,16 +139,7 @@ export async function render(root, ctx) {
     btn.disabled = true;
     btn.textContent = '저장 중…';
     try {
-      // PUT은 전체 항목을 받는다. 보내지 않은 값이 비워지므로 기존 값을 함께 싣는다.
-      await api.put(`/api/programs/${encodeURIComponent(programId)}`, {
-        name: p.name,
-        goal_amount: p.goal_amount,
-        start_date: p.start_date,
-        end_date: p.end_date,
-        methods: p.methods || [],
-        reward: p.reward || '',
-        description: p.description || '',
-        tags: p.tags || [],
+      await putProgram(programId, p, {
         template_id: root.querySelector('#tpl-default').value || null,
         legacy_template_id: root.querySelector('#tpl-legacy').value || null,
       });
@@ -150,6 +151,152 @@ export async function render(root, ctx) {
       btn.textContent = '서식 연결 저장';
     }
   };
+}
+
+// PUT은 전체 항목을 받는다. 보내지 않은 값이 비워지므로 기존 값 위에 바꿀 것만 얹는다.
+function putProgram(programId, p, overrides) {
+  return api.put(`/api/programs/${encodeURIComponent(programId)}`, {
+    name: p.name,
+    goal_amount: p.goal_amount,
+    start_date: p.start_date,
+    end_date: p.end_date,
+    methods: p.methods || [],
+    reward: p.reward || '',
+    description: p.description || '',
+    tags: p.tags || [],
+    template_id: p.template_id || null,
+    legacy_template_id: p.legacy_template_id || null,
+    ...overrides,
+  });
+}
+
+function openEdit(p, ctx) {
+  modal({
+    title: '사업 수정',
+    body: `
+      <div class="field">
+        <label for="e-name">사업명</label>
+        <input id="e-name" value="${esc(p.name)}">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="e-goal">목표 금액</label>
+          <input id="e-goal" type="number" min="0" step="100000" value="${p.goal_amount ?? ''}">
+        </div>
+        <div class="field">
+          <label for="e-reward">답례품</label>
+          <input id="e-reward" value="${esc(p.reward || '')}">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="e-start">모금 시작</label>
+          <input id="e-start" type="date" value="${esc(p.start_date || '')}">
+        </div>
+        <div class="field">
+          <label for="e-end">모금 종료</label>
+          <input id="e-end" type="date" value="${esc(p.end_date || '')}">
+        </div>
+      </div>
+      <div class="field">
+        <label>받는 방식</label>
+        <div class="flex" style="flex-wrap:wrap">
+          ${METHODS.map((m) => `
+            <label class="chip" style="cursor:pointer">
+              <input type="checkbox" class="e-method" value="${m}"
+                     ${(p.methods || []).includes(m) ? 'checked' : ''}> ${m}
+            </label>`).join('')}
+        </div>
+      </div>
+      <div class="field">
+        <label for="e-desc">사업 요약</label>
+        <textarea id="e-desc" rows="3">${esc(p.description || '')}</textarea>
+      </div>
+      <div class="field">
+        <label for="e-tags">태그 <span class="muted" style="font-weight:400">— 쉼표로 구분</span></label>
+        <input id="e-tags" value="${esc((p.tags || []).join(', '))}">
+      </div>
+      <div class="note" style="margin:0">
+        신청서 양식 연결은 이 창이 아니라 상세 화면의 <b>신청서 양식</b>에서 바꿉니다.
+      </div>`,
+    footer: `<button class="btn" data-close>취소</button>
+             <button class="btn primary" id="save">저장</button>`,
+    onMount: (bg, close) => {
+      bg.querySelector('#save').onclick = async (e) => {
+        const name = bg.querySelector('#e-name').value.trim();
+        const goal = Number(bg.querySelector('#e-goal').value);
+        const methods = [...bg.querySelectorAll('.e-method:checked')].map((c) => c.value);
+        if (!name) return toast('사업명을 입력해주세요.', 'error');
+        if (!goal || goal <= 0) return toast('목표 금액을 입력해주세요.', 'error');
+        if (!methods.length) return toast('받는 방식을 하나 이상 선택해주세요.', 'error');
+
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.textContent = '저장 중…';
+        try {
+          await putProgram(p.id, p, {
+            name,
+            goal_amount: goal,
+            start_date: bg.querySelector('#e-start').value,
+            end_date: bg.querySelector('#e-end').value,
+            methods,
+            reward: bg.querySelector('#e-reward').value.trim(),
+            description: bg.querySelector('#e-desc').value.trim(),
+            tags: bg.querySelector('#e-tags').value
+              .split(',').map((s) => s.trim()).filter(Boolean),
+          });
+          toast('사업 정보를 저장했습니다.');
+          close();
+          ctx.reload();
+        } catch (err) {
+          toast(err.message, 'error');
+          btn.disabled = false;
+          btn.textContent = '저장';
+        }
+      };
+    },
+  });
+}
+
+function openDelete(p, agreementCount, ctx) {
+  // 약정이 있으면 서버가 막는다. 눌러보고 실패하는 대신 미리 이유를 보여준다.
+  const blocked = agreementCount > 0;
+  modal({
+    title: `'${p.name}' 삭제`,
+    body: blocked
+      ? `<div class="note" style="margin:0">
+           이 사업에는 <b>약정이 ${num(agreementCount)}건</b> 있어 삭제할 수 없습니다.
+           지우면 그 약정들의 대상 사업이 사라져 대시보드·리포트 집계가 어긋납니다.<br><br>
+           기부자 화면에서 감추고 싶으시면 <b>보관</b>을 이용해주세요.
+           보관해도 이미 맺은 약정과 집계는 그대로 남습니다.
+         </div>`
+      : `<p style="margin:0 0 12px">이 사업을 완전히 삭제합니다. 되돌릴 수 없습니다.</p>
+         <div class="note" style="margin:0">
+           약정이 없는 사업이라 집계에는 영향이 없습니다.
+           나중에 다시 쓸 수도 있다면 삭제 대신 <b>보관</b>을 권합니다.
+         </div>`,
+    footer: blocked
+      ? '<button class="btn" data-close>닫기</button>'
+      : `<button class="btn" data-close>취소</button>
+         <button class="btn coral" id="do-delete">삭제</button>`,
+    onMount: (bg, close) => {
+      bg.querySelector('#do-delete')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.textContent = '삭제 중…';
+        try {
+          const res = await api.del(`/api/programs/${encodeURIComponent(p.id)}`);
+          toast(res.message);
+          close();
+          ctx.navigate('/programs');
+        } catch (err) {
+          toast(err.message, 'error');
+          btn.disabled = false;
+          btn.textContent = '삭제';
+        }
+      });
+    },
+  });
 }
 
 function formBlock(kind, form, templates) {

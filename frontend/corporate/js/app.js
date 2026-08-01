@@ -23,9 +23,9 @@ const NAV = [
   { key: 'fulfillment', label: '이행 관리', href: '#/fulfillment' },
   // 유산기부는 금액이 아니라 건수로 관리하고 사후에 수령을 기록해서 따로 둔다.
   { key: 'legacy', label: '유산 약정', href: '#/legacy' },
+  // 서식은 사업에 연결해 쓰는 것이라 메뉴를 따로 두지 않는다.
+  // 모금 사업 목록의 '계약서 서식 관리' 버튼으로 들어간다.
   { key: 'programs', label: '모금 사업', href: '#/programs' },
-  // 서식은 사업에 연결해 쓰지만, 만들고 고치는 일이 잦아 따로 꺼내 둔다.
-  { key: 'templates', label: '계약서 서식', href: '#/templates/new' },
   { key: 'reports', label: '리포트', href: '#/reports' },
   { key: 'settings', label: '설정', href: '#/settings' },
 ];
@@ -37,8 +37,8 @@ const ROUTES = [
   { re: /^\/donations$/, view: w2, nav: 'donations' },
   { re: /^\/donations\/at-risk$/, view: w3, nav: 'donations' },
   { re: /^\/donations\/([\w-]+)$/, view: w4, nav: 'donations', params: ['documentId'] },
-  { re: /^\/templates\/new$/, view: w5, nav: 'templates' },
-  { re: /^\/templates\/([\w-]+)\/edit$/, view: w6, nav: 'templates', params: ['templateId'] },
+  { re: /^\/templates\/new$/, view: w5, nav: 'programs' },
+  { re: /^\/templates\/([\w-]+)\/edit$/, view: w6, nav: 'programs', params: ['templateId'] },
   { re: /^\/programs$/, view: w7list, nav: 'programs' },
   { re: /^\/programs\/new$/, view: w7, nav: 'programs' },
   { re: /^\/programs\/([\w-]+)$/, view: w7detail, nav: 'programs', params: ['programId'] },

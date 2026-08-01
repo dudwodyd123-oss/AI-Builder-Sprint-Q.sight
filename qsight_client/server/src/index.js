@@ -4,6 +4,7 @@ import cors from "cors";
 import morgan from "morgan";
 
 import { CORP_BASE_URL } from "./lib/corp.js";
+import { isConfigured as modusignConfigured } from "./lib/modusign.js";
 import { loadLegacySpec } from "./lib/legacySpec.js";
 import chatRouter from "./routes/chat.js";
 import programsRouter from "./routes/programs.js";
@@ -33,7 +34,15 @@ app.use(morgan("dev"));
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "qsight-server", corpApi: CORP_BASE_URL, time: new Date().toISOString() });
+  res.json({
+    ok: true,
+    service: "qsight-server",
+    corpApi: CORP_BASE_URL,
+    // 키가 없어도 서버는 뜨지만 해당 기능만 꺼진다. 어디가 꺼졌는지 한눈에 보이게 한다.
+    upstage: process.env.UPSTAGE_API_KEY ? "on" : "off",
+    modusign: modusignConfigured() ? "on" : "off",
+    time: new Date().toISOString(),
+  });
 });
 
 app.use("/api/chat", chatRouter);
@@ -57,4 +66,15 @@ app.listen(PORT, () => {
   console.log(`Q.sight server가 http://localhost:${PORT} 에서 실행 중입니다.`);
   console.log(`기업용 API: ${CORP_BASE_URL}`);
   console.log(`유산기부 대본 스펙: v${legacySpec.version} (검토: ${legacySpec.reviewed_by})`);
+
+  // 키가 없으면 해당 기능만 꺼진 채로 뜬다. 무엇이 꺼졌는지 기동 로그에 남긴다.
+  if (!process.env.UPSTAGE_API_KEY) {
+    console.warn("");
+    console.warn("⚠️  UPSTAGE_API_KEY가 없어 AI 챗봇 상담을 사용할 수 없습니다.");
+    console.warn("    server/.env.example을 .env로 복사한 뒤 발급받은 키를 넣어주세요.");
+    console.warn("    (사업 목록·약정·전자서명 등 나머지 기능은 그대로 동작합니다)");
+  }
+  if (!modusignConfigured()) {
+    console.log("모두싸인 개인 계정 미연결 — 증서함의 서명 문서 목록만 비활성화됩니다.");
+  }
 });

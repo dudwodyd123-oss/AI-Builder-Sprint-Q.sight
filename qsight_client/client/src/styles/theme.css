@@ -1116,3 +1116,36 @@ button {
   background: var(--accent-soft);
   color: var(--accent-dark);
 }
+
+/* ── 고지문 낭독 버튼 ──────────────────────────────────────
+   유산기부 고지·동의처럼 반드시 이해하고 넘어가야 하는 문장 옆에만 붙는다.
+   고령 이용자가 많아 터치 영역을 넉넉히 잡는다. */
+.speak-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  font-size: 14px;
+  min-height: 40px;
+}
+
+.speak-btn.speaking {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.speak-btn.speaking:hover:not(:disabled) {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.speak-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.speak-notice {
+  margin-top: 6px;
+  color: var(--danger);
+}

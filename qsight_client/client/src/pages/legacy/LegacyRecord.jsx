@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../../components/Layout.jsx";
 import Card from "../../components/Card.jsx";
 import LegacySteps from "./LegacySteps.jsx";
+import SpeakButton from "../../components/SpeakButton.jsx";
 import { useLegacySpec } from "./useLegacySpec.js";
 import { api } from "../../api.js";
 import { usePledgeFlow } from "../../context/PledgeContext.jsx";
@@ -184,6 +185,26 @@ export default function LegacyRecord() {
           <li>시작하면 끝날 때까지 멈추지 않습니다. 일시정지는 없어요.</li>
           <li>문장은 [다음] 버튼으로 넘기시면 되고, 그동안 녹음은 계속됩니다.</li>
         </ul>
+        {/* ⚠️ 녹음이 시작되면 반드시 막는다. 합성음이 마이크에 들어가면
+            녹음유언에 본인 아닌 목소리가 섞여 증거력이 훼손된다.
+            읽어주는 것은 주의사항뿐이고, 대본은 절대 읽어주지 않는다. */}
+        <div style={{ marginTop: 14 }}>
+          <SpeakButton
+            text={[
+              spec?.notices?.record,
+              "증인이 옆에 계신지 확인해주세요. 증인도 마지막 두 문장을 읽습니다.",
+              "시작하면 끝날 때까지 멈추지 않습니다. 일시정지는 없어요.",
+              "문장은 다음 버튼으로 넘기시면 되고, 그동안 녹음은 계속됩니다.",
+            ]}
+            label="주의사항 들어보기"
+            disabled={phase !== "idle"}
+          />
+          {phase !== "idle" && (
+            <p className="hint" style={{ marginTop: 6 }}>
+              녹음 중에는 소리가 섞이지 않도록 읽어주기가 꺼집니다.
+            </p>
+          )}
+        </div>
       </Card>
 
       {phase === "idle" ? (

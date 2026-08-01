@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../../components/Layout.jsx";
 import Card from "../../components/Card.jsx";
 import LegacySteps from "./LegacySteps.jsx";
+import SpeakButton from "../../components/SpeakButton.jsx";
 import { useLegacySpec } from "./useLegacySpec.js";
 import { api } from "../../api.js";
 import { usePledgeFlow } from "../../context/PledgeContext.jsx";
@@ -76,6 +77,13 @@ export default function LegacyWitness() {
       </Card>
 
       <Card title="증인 자격 확인" subtitle={spec?.notices?.witness}>
+        {/* 증인 자격을 잘못 알면 녹음 전체가 무효가 되므로 고지와 질문을 함께 들려준다 */}
+        <div style={{ marginBottom: 14 }}>
+          <SpeakButton
+            text={[spec?.notices?.witness, ...questions.map((q) => q.text)]}
+            label="증인 자격 안내 들어보기"
+          />
+        </div>
         <div className="consent-list">
           {questions.map((q) => (
             <div key={q.key} className={`witness-row${answers[q.key] === false ? " bad" : ""}`}>

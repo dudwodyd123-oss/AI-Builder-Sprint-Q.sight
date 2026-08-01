@@ -8,7 +8,7 @@ import fetch from "node-fetch";
  * (브라우저에서 직접 부르지 않으므로 기업용 API를 인터넷에 노출할 필요가 없다)
  */
 
-const BASE_URL = (process.env.QSIGHT_CORP_API || "http://localhost:8090").replace(/\/+$/, "");
+const BASE_URL = (process.env.QSIGHT_CORP_API || "http://localhost:8080").replace(/\/+$/, "");
 
 export { BASE_URL as CORP_BASE_URL };
 

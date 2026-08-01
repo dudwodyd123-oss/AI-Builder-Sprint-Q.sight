@@ -7,7 +7,7 @@ React(Vite) 프론트엔드 + Node/Express 백엔드로 구성되어 있습니�
 **기업용 웹 서버**가 처리하며, 개인용 웹은 모두싸인 API를 직접 호출하지 않습니다.
 
 ```
-브라우저 ──/api──▶ 개인용 서버(4000) ──▶ 기업용 서버(8090) ──▶ 모두싸인
+브라우저 ──/api──▶ 개인용 서버(4000) ──▶ 기업용 서버(8080) ──▶ 모두싸인
                       │
                       └──▶ Upstage AI (챗봇 LLM)
 ```
@@ -17,7 +17,7 @@ CORS 문제가 없고, 기업용 API를 인터넷에 노출할 필요도 없습�
 
 ## 실행 방법
 
-기업용 웹 서버가 먼저 실행되어 있어야 합니다 (기본값 `http://localhost:8090`).
+기업용 웹 서버가 먼저 실행되어 있어야 합니다 (기본값 `http://localhost:8080`).
 그 다음 터미널 두 개로 server와 client를 각각 실행합니다.
 
 ### 1. 서버 실행
@@ -46,7 +46,7 @@ npm run dev
 | --- | --- |
 | `UPSTAGE_API_KEY` | 챗봇 LLM용 Upstage API Key |
 | `UPSTAGE_BASE_URL`, `UPSTAGE_MODEL` | Upstage 엔드포인트 / 모델명 |
-| `QSIGHT_CORP_API` | 기업용 웹 서버 주소 (기본 `http://localhost:8090`) |
+| `QSIGHT_CORP_API` | 기업용 웹 서버 주소 (기본 `http://localhost:8080`) |
 | `MODUSIGN_EMAIL`, `MODUSIGN_API_KEY` | **개인** 모두싸인 계정 (증서함 조회 전용, 비워두면 증서함 목록만 비활성화) |
 | `PORT` | 개인용 서버 포트 (기본 4000) |
 

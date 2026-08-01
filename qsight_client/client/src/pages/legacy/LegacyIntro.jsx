@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../../components/Layout.jsx";
 import Card from "../../components/Card.jsx";
 import LegacySteps from "./LegacySteps.jsx";
+import SpeakButton from "../../components/SpeakButton.jsx";
 import { useLegacySpec } from "./useLegacySpec.js";
 import { usePledgeFlow } from "../../context/PledgeContext.jsx";
 import { api } from "../../api.js";
@@ -103,9 +104,19 @@ export default function LegacyIntro() {
               <div className="alert alert-info" style={{ margin: "18px 0 0" }}>
                 {spec.notices?.intro}
               </div>
+              <div style={{ marginTop: 10 }}>
+                <SpeakButton text={spec.notices?.intro} label="안내 들어보기" />
+              </div>
             </Card>
 
             <Card title="시작하기 전에 확인해주세요" subtitle="아래 내용을 읽고 동의해주세요">
+              {/* 체크만 하고 넘어가기 가장 쉬운 대목이라, 동의 항목 전체를 소리로도 들려준다 */}
+              <div style={{ marginBottom: 14 }}>
+                <SpeakButton
+                  text={items.map((item) => item.text)}
+                  label="동의 항목 들어보기"
+                />
+              </div>
               <div className="consent-list">
                 {items.map((item) => (
                   <label key={item.key} className={`consent-row${checked[item.key] ? " on" : ""}`}>

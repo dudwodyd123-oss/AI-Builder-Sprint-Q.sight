@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../../components/Layout.jsx";
 import Card from "../../components/Card.jsx";
 import LegacySteps from "./LegacySteps.jsx";
+import SpeakButton from "../../components/SpeakButton.jsx";
 import { useLegacySpec } from "./useLegacySpec.js";
 import { api } from "../../api.js";
 import { STATUS_LABEL } from "../../context/PledgeContext.jsx";
@@ -194,6 +195,13 @@ export default function LegacyDone() {
             <li key={i}>{line}</li>
           ))}
         </ul>
+        {/* 검인 절차·가족 고지처럼 나중에 실제로 해야 하는 일이라 놓치면 안 된다 */}
+        <div style={{ marginTop: 12 }}>
+          <SpeakButton
+            text={[spec?.notices?.done_result, ...(spec?.notices?.done_next || [])]}
+            label="결과와 앞으로 할 일 들어보기"
+          />
+        </div>
         <p className="hint">
           녹음 파일은 기관에 보내지 않고 이 서비스에만 보관됩니다. 생전에 기관이 유언 내용을
           열람하지 않도록 하기 위해서예요.

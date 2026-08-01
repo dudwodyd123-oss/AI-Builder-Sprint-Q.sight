@@ -47,6 +47,79 @@
 - 우수상 1팀: 상품
 - 본선 참가 10팀: Upstage 굿즈 + 참가 인증서
 
+## Q.sight 실행하기
+
+기부자용 웹과 기관용 웹이 서로 통신하는 구조라 **서버 3개**를 순서대로 띄웁니다.
+
+```
+브라우저 :5173 ──/api──▶ 개인용 서버 :4000 ──▶ 기업용 서버 :8080 ──▶ 모두싸인
+                             │
+                             └──▶ Upstage Solar (AI 챗봇)
+```
+
+| 폴더 | 역할 | 포트 |
+| --- | --- | --- |
+| `backend/` | 기관용 서버 — 사업·계약서식·약정·전자서명 (기관용 웹 화면 포함) | 8080 |
+| `qsight_client/server/` | 기부자용 서버 — AI 챗봇, 기관 API 중계 | 4000 |
+| `qsight_client/client/` | 기부자용 화면 (React) | 5173 |
+
+### 1. 기관용 서버 (먼저 실행)
+
+```bash
+pip install -r backend/requirements.txt
+python -m uvicorn server.main:app --port 8080 --app-dir backend --reload
+```
+
+- 기관용 웹 — http://localhost:8080/corporate/
+- API 문서 — http://localhost:8080/docs
+
+첫 실행이면 모금 사업과 계약서 서식이 **자동으로 채워집니다**. 별도 준비가 필요 없습니다.
+
+### 2. 기부자용 서버
+
+```bash
+cd qsight_client/server
+cp .env.example .env
+npm install
+npm run dev
+```
+
+### 3. 기부자용 화면
+
+```bash
+cd qsight_client/client
+npm install
+npm run dev
+```
+
+http://localhost:5173 으로 접속합니다.
+
+### API 키
+
+**키가 하나도 없어도 대부분의 기능이 동작합니다.** 모두싸인 자격증명이 없으면 기관용 서버가
+자동으로 데모 모드로 전환되어, 실제 메일 발송 없이 약정 생성과 서명 상태 조회가 끝까지 진행됩니다.
+
+| 키 | 넣는 곳 | 없으면 |
+| --- | --- | --- |
+| `UPSTAGE_API_KEY` | `qsight_client/server/.env` | **AI 챗봇 상담만 사용 불가** (그 외 전부 정상) |
+| `MODUSIGN_EMAIL`·`MODUSIGN_API_KEY` | `backend/.env` | 데모 모드로 동작 (실제 서명 메일 미발송) |
+| `MODUSIGN_EMAIL`·`MODUSIGN_API_KEY` | `qsight_client/server/.env` | 증서함의 서명 문서 목록만 비활성화 |
+
+`.env` 파일은 저장소에 포함되지 않습니다. 각 폴더의 `.env.example`을 `.env`로 복사한 뒤
+전달받은 값을 채워 넣으면 됩니다. 기부자용 서버에 넣는 모두싸인 키는 기관용과 **다른 개인 계정**
+이어야 합니다 (본인이 서명한 문서를 조회하는 용도).
+
+현재 설정 상태는 각 서버의 health 엔드포인트에서 확인할 수 있습니다.
+
+```bash
+curl http://localhost:8080/api/health
+curl http://localhost:4000/api/health
+```
+
+각 폴더의 README에 더 자세한 설명이 있습니다 — [backend/README.md](backend/README.md),
+[qsight_client/README.md](qsight_client/README.md).
+
+
 ## Git Fork 하는 방법
 
 참가팀은 이 저장소를 팀 대표의 GitHub 계정으로 **Fork**한 뒤, 해당 Fork 저장소에서 프로젝트를 개발하고 최종 결과물을 제출합니다.

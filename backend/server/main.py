@@ -22,6 +22,7 @@ from .routers import (
     dashboard,
     donations,
     fulfillment,
+    legacy,
     programs,
     public,
     reports,
@@ -42,8 +43,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (dashboard, donations, templates, programs, fulfillment, reports,
-          public, webhooks):
+for r in (dashboard, donations, templates, programs, fulfillment, legacy,
+          reports, public, webhooks):
     app.include_router(r.router)
 
 

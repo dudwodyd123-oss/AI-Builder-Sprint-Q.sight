@@ -14,12 +14,15 @@ import * as w7 from './views/w7_program_new.js';
 import * as w7detail from './views/w7_program_detail.js';
 import * as w8 from './views/w8_fulfillment.js';
 import * as w9 from './views/w9_reports.js';
+import * as w10 from './views/w10_legacy.js';
 
 // 사이드바 메뉴 → 어떤 화면이 어느 메뉴에 속하는지
 const NAV = [
   { key: 'dashboard', label: '대시보드', href: '#/dashboard' },
   { key: 'donations', label: '기부 현황', href: '#/donations' },
   { key: 'fulfillment', label: '이행 관리', href: '#/fulfillment' },
+  // 유산기부는 금액이 아니라 건수로 관리하고 사후에 수령을 기록해서 따로 둔다.
+  { key: 'legacy', label: '유산 약정', href: '#/legacy' },
   { key: 'programs', label: '모금 사업', href: '#/programs' },
   // 서식은 사업에 연결해 쓰지만, 만들고 고치는 일이 잦아 따로 꺼내 둔다.
   { key: 'templates', label: '계약서 서식', href: '#/templates/new' },
@@ -40,6 +43,7 @@ const ROUTES = [
   { re: /^\/programs\/new$/, view: w7, nav: 'programs' },
   { re: /^\/programs\/([\w-]+)$/, view: w7detail, nav: 'programs', params: ['programId'] },
   { re: /^\/fulfillment$/, view: w8, nav: 'fulfillment' },
+  { re: /^\/legacy$/, view: w10, nav: 'legacy' },
   { re: /^\/reports$/, view: w9, nav: 'reports' },
 ];
 

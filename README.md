@@ -15,6 +15,8 @@
 | 실행 방법 | 아래 [Q.sight 실행하기](#qsight-실행하기) — 서버 3개를 순서대로 |
 | 핵심 차별점 | 유산기부 **녹음유언** (민법 제1067조 요식행위를 화면이 안내) |
 | AI 활용 | Upstage Solar Pro 2 · Document Parse · Information Extract |
+| AI 활용 증빙 | [AI_활용_증빙.md](AI_활용_증빙.md) — 모델·사용 위치·프롬프트·검증 결과 |
+| 개발 규칙 | [CLAUDE.md](CLAUDE.md) — 코딩 에이전트 지침 |
 | 개발 문서 | [기관용](qsight_corp/backend/README.md) · [기부자용](qsight_client/README.md) |
 
 ---

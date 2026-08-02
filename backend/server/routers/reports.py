@@ -1,4 +1,7 @@
-"""W9 리포트 발행."""
+"""W9 후원 리포트.
+
+발송 채널이 아직 없어서 초안 숫자를 만들고 이력에 남기는 데까지만 한다.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +15,7 @@ from ..services import risk
 router = APIRouter(prefix="/api/reports", tags=["W9"])
 
 
-class PublishRequest(BaseModel):
+class DraftRequest(BaseModel):
     year: int
     quarter: int
 
@@ -28,11 +31,13 @@ async def get_reports(year: int | None = None, quarter: int | None = None):
     }
 
 
-@router.post("/publish")
-async def publish(body: PublishRequest):
+@router.post("/draft")
+async def save_draft(body: DraftRequest):
+    """초안을 이력에 남긴다. ⚠️ 발송하지 않는다."""
     docs = await donations.load_documents()
-    record = svc.publish(docs, body.year, body.quarter)
+    record = svc.save_draft(docs, body.year, body.quarter)
     return {
         "report": record,
-        "message": f"{record['title']}를 수신자 {record['recipient_count']}명에게 발행했습니다.",
+        "message": f"{record['title']} 초안을 만들었습니다. "
+                   f"수신 대상 {record['recipient_count']}명 · 발송은 아직 연결되지 않았습니다.",
     }

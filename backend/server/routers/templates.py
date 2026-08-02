@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from .. import store
 from ..clients import upstage
+from ..clients.mock_data import TEMPLATES as DEMO_TEMPLATES
 from ..clients.modusign import ModusignError
 from ..clients.modusign import client as modusign
 from ..services import contract, parsing
@@ -36,10 +37,14 @@ class PreviewRequest(BaseModel):
 
 @router.get("")
 async def list_templates():
-    """모두싸인 템플릿 + 이 앱에서 만든 서식.
+    """모두싸인 템플릿 + 이 앱에서 만든 서식 + 데모 기본 서식.
 
     deletable은 우리 저장소에 있는 것만 True다. 모두싸인 쪽 템플릿과
     데모 기본 서식은 여기서 지울 수 없다.
+
+    데모 기본 서식을 함께 내려주는 이유는 '유산기부 의향 확인서'처럼 미리
+    준비된 서식을 사업에 바로 연결할 수 있어야 하기 때문이다. 목록에 없으면
+    기관이 유산기부를 받으려고 서식을 처음부터 다시 만들어야 한다.
     """
     remote = await modusign.list_templates()
     local = store.read_list("templates")
@@ -48,6 +53,10 @@ async def list_templates():
     rows = [{**t, "deletable": False, "origin": "modusign"} for t in remote]
     rows += [{**t, "deletable": True, "origin": "qsight"}
              for t in local if t["id"] not in known]
+    # 같은 id를 기관이 이미 저장했다면 그쪽이 이긴다(데모 서식을 고쳐 쓴 경우).
+    seen = {t["id"] for t in rows}
+    rows += [{**t, "deletable": False, "origin": "demo"}
+             for t in DEMO_TEMPLATES if t["id"] not in seen]
     return {"rows": rows}
 
 

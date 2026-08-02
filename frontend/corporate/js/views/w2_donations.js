@@ -13,6 +13,19 @@ const FILTERS = [
   { key: 'normal', label: '정상' },
 ];
 
+// 유산 약정은 서명만 한 것과 녹음유언까지 마친 것이 법적으로 다르다.
+// 서명만으로는 유언이 되지 않으므로 목록에서 바로 구분되어야 한다.
+const RECORDING_BADGE = {
+  verified: { label: '녹음 확인 완료', tone: 'success' },
+  recorded: { label: '녹음 완료', tone: 'teal' },
+};
+
+function recordingBadge(r) {
+  if (!r.is_legacy) return '';
+  const b = RECORDING_BADGE[r.recording_status];
+  return b ? badge(b.label, b.tone) : badge('서명만', 'warning');
+}
+
 export async function render(root, ctx) {
   const status = ctx.search.get('status') || 'all';
   const q = ctx.search.get('q') || '';
@@ -132,7 +145,8 @@ function rowHtml(r) {
   return `
     <tr data-id="${esc(r.id)}" class="clickable">
       <td><input type="checkbox" data-id="${esc(r.id)}" aria-label="${esc(r.donor)} 선택"></td>
-      <td class="strong">${esc(r.donor)}<div class="muted" style="font-size:12px">${esc(r.title)}</div></td>
+      <td class="strong">${esc(r.donor)} ${recordingBadge(r)}
+        <div class="muted" style="font-size:12px">${esc(r.title)}</div></td>
       <td class="muted">${esc(r.program_name || '—')}</td>
       <td>${esc(r.type)}</td>
       <td class="num">${amount}</td>

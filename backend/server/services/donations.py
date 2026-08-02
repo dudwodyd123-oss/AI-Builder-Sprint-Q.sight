@@ -10,9 +10,12 @@ from datetime import date, datetime, timedelta
 
 from .. import store
 from ..clients.modusign import STATUS_LABELS, client
+from . import agreements as agreements_svc
 
-# 이행 지연으로 볼 유예 기간(일)
-GRACE_DAYS = 5
+# 지연 판정에 유예를 두지 않는다.
+# 예전에는 5일 유예가 있었는데, 이행 관리(W8)는 예정일 다음 날부터 "지연 N일"로
+# 표시해서 같은 약정이 기부 현황에서는 "정상"으로 보였다. 화면마다 답이 다르면
+# 담당자가 어느 쪽을 믿어야 할지 알 수 없다. W8과 같은 기준으로 맞춘다.
 
 # 납부 주기별 회차 간격(개월). 여기 없는 주기(일시·유산)는 회차 이행이 없다.
 SCHEDULE_STEPS = {"월": 1, "회": 3, "연": 12}
@@ -39,6 +42,9 @@ async def load_documents() -> list[dict]:
 
     # 로컬에서 기록한 회차 이행/증빙을 문서에 덮어쓴다.
     local = {row["document_id"]: row for row in store.read_list("fulfillment")}
+    # 개인용 웹이 알려온 유산기부 녹음 완료 사실. 여기서 한 번 합쳐 두면
+    # W2·W3·W4가 모두 같은 값을 본다.
+    recordings = agreements_svc.recordings_by_document()
     today = date.today()
 
     enriched = []
@@ -49,6 +55,7 @@ async def load_documents() -> list[dict]:
             doc["installments"] = patch["installments"]
         elif not doc.get("installments"):
             doc["installments"] = _schedule(doc, today)
+        doc["legacy_recording"] = recordings.get(doc["id"])
         enriched.append(_derive(doc, today))
     return enriched
 
@@ -123,6 +130,16 @@ def _derive(doc: dict, today: date) -> dict:
         consecutive_missed += 1
 
     is_signed = doc.get("status") == "COMPLETED"
+
+    # 유산 약정은 서명만 한 것과 녹음유언까지 마친 것이 법적으로 다르다.
+    # 녹음이 있어야 민법 제1067조 요건을 논할 수 있고, 서명만이면 기부 의사 표시일 뿐이다.
+    # 서명 후 며칠째 녹음이 없는지 세어 두면 담당자가 연락해 도울 수 있다.
+    recording = doc.get("legacy_recording") or None
+    is_legacy = donation.get("type") == "유산"
+    days_without_recording = None
+    if is_legacy and is_signed and not recording:
+        signed_on = _d(doc.get("completed_at")) or start
+        days_without_recording = max(0, (today - signed_on).days) if signed_on else None
     is_expired = doc.get("status") == "EXPIRED" or bool(end and end < today and is_signed)
     is_active = is_signed and not is_expired
 
@@ -134,7 +151,7 @@ def _derive(doc: dict, today: date) -> dict:
         board_status, tone = "취소됨", "muted"
     elif is_expired:
         board_status, tone = "기한 만료", "muted"
-    elif delay_days > GRACE_DAYS:
+    elif delay_days > 0:
         board_status, tone = f"지연 {delay_days}일", "warning"
     else:
         board_status, tone = "정상", "success"
@@ -161,6 +178,9 @@ def _derive(doc: dict, today: date) -> dict:
         "monthly_value": _monthly_value(donation),
         "viewed_not_signed_days": _viewed_not_signed_days(doc, today),
         "has_amendment": bool(doc.get("amendment")),
+        "is_legacy": is_legacy,
+        "recording_status": (recording or {}).get("status"),
+        "days_without_recording": days_without_recording,
     }
     return doc
 
@@ -198,11 +218,15 @@ def to_row(doc: dict) -> dict:
         "type": doc["donation"]["type"],
         "amount": doc["donation"]["amount"],
         "frequency": doc["donation"]["frequency"],
+        "program_id": doc["donation"].get("program_id"),
         "program_name": doc["donation"]["program_name"],
         "next_due": d["next_due_date"],
         "status": d["board_status"],
         "tone": d["tone"],
         "is_pending_signature": d["is_pending_signature"],
+        # 유산 약정만 의미가 있다. 서명만 한 사람과 녹음까지 마친 사람을 목록에서 가른다.
+        "is_legacy": d["is_legacy"],
+        "recording_status": d["recording_status"],
         "last_reminded_at": doc.get("last_reminded_at"),
         "requested_at": doc["requested_at"],
     }

@@ -18,9 +18,10 @@ export async function render(root, ctx) {
   const d = doc.derived;
   const donation = doc.donation;
 
+  // 유산기부는 사후에 정해지므로 금액이 비어 있는 게 정상이다. 봉사와 이유가 다르다.
   const amountLine = donation.amount
     ? `${won(donation.amount)}${donation.frequency === '월' ? ' / 월' : donation.frequency === '연' ? ' / 년' : ''}`
-    : '금액 없음(봉사)';
+    : d.is_legacy ? '금액은 사후 확정' : '금액 없음(봉사)';
 
   // 서명이 끝나야 약정서·감사 추적 PDF가 생긴다. 없으면 버튼을 눌러도 오류만 나므로 잠근다.
   const ready = (key) => (data.proof_pack.items.find((it) => it.key === key) || {}).available;
@@ -121,6 +122,8 @@ export async function render(root, ctx) {
       </div>
     </div>
 
+    ${d.is_legacy ? recordingCard(doc.legacy_recording) : ''}
+
     ${doc.installments?.length ? `
     <div class="card">
       <div class="card-h"><h2>회차별 이행</h2><span class="spacer"></span>
@@ -197,6 +200,66 @@ async function checkLive(documentId, btn, root) {
     btn.disabled = false;
     btn.textContent = '실시간 상태 조회';
   }
+}
+
+// 유산 약정의 녹음유언 상태.
+// 파일과 유언 내용은 기관에 없다(의도된 것). 재생 버튼을 만들지 말 것 —
+// 생전에 기관이 유언 내용을 열람하면 부당한 영향력 행사 의혹의 빌미가 된다.
+function recordingCard(rec) {
+  if (!rec) {
+    return `
+      <div class="card">
+        <div class="card-h"><h2>녹음유언</h2><span class="spacer"></span>
+          ${badge('서명만', 'warning')}</div>
+        <div class="card-b">
+          <div class="note" style="margin:0">
+            <b style="color:var(--ink)">아직 녹음유언이 없습니다.</b><br>
+            유산기부 약정에 서명하셨지만, <b>서명만으로는 법적인 유언이 되지 않습니다</b>(민법 제1065조).
+            기부자가 개인용 웹에서 녹음유언을 마치셔야 유증으로서 효력을 논할 수 있습니다.
+            연락해서 안내해 주세요.
+          </div>
+        </div>
+      </div>`;
+  }
+
+  const verified = rec.status === 'verified';
+  const seconds = rec.duration_ms ? Math.round(rec.duration_ms / 1000) : null;
+  return `
+    <div class="card">
+      <div class="card-h"><h2>녹음유언</h2><span class="spacer"></span>
+        ${badge(verified ? '녹음 확인 완료' : '녹음 완료', verified ? 'success' : 'teal')}</div>
+      <div class="card-b">
+        <table><tbody>
+          <tr><td class="muted" style="width:130px">녹음 시각</td>
+              <td>${esc((rec.recorded_at || '').replace('T', ' ').slice(0, 19)) || '—'}</td></tr>
+          <tr><td class="muted">길이</td>
+              <td>${seconds != null ? `${num(seconds)}초` : '<span class="muted">—</span>'}</td></tr>
+          <tr><td class="muted">증인</td>
+              <td>${rec.has_witness
+                    ? badge('등록됨', 'success')
+                    : badge('없음', 'error')}
+                <span class="muted" style="font-size:12px">
+                  — 증인 신원은 기관이 보관하지 않습니다</span></td></tr>
+          <tr><td class="muted">자가 확인</td>
+              <td>${num(rec.checklist_passed)} / ${num(rec.checklist_total)}
+                ${rec.checklist_total && rec.checklist_passed >= rec.checklist_total
+                  ? badge('모두 확인', 'success') : badge('미완료', 'warning')}</td></tr>
+          <tr><td class="muted">파일 지문</td>
+              <td style="font-family:ui-monospace,monospace;font-size:11.5px;word-break:break-all">
+                ${esc(rec.sha256 || '—')}</td></tr>
+        </tbody></table>
+
+        <div class="note" style="margin-top:14px">
+          <b>파일 지문(SHA-256)</b>은 이 녹음이 나중에 바뀌지 않았음을 확인하는 값입니다.
+          같은 파일이면 항상 같은 값이 나오므로, 사후에 제출된 녹음이 그때 그 녹음인지 대조할 수 있습니다.
+        </div>
+        <div class="note" style="margin-top:10px">
+          <b style="color:var(--ink)">녹음 파일과 유언 내용은 기관에 보관하지 않습니다.</b>
+          생전에 기관이 유언 내용을 열람하면 부당한 영향력 행사 의혹의 빌미가 됩니다.
+          사후 집행 시점에 필요하면 그때 기부자 쪽에서 받습니다.
+        </div>
+      </div>
+    </div>`;
 }
 
 function statCard(label, value, tone) {

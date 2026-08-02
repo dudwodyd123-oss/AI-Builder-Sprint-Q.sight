@@ -163,11 +163,15 @@ async function renderAgreement(root, ctx, documentId) {
               <tr>
                 <td class="strong">${i.no}회차</td>
                 <td class="muted nowrap">${esc(i.due_date)}</td>
-                <td class="muted nowrap">${esc(i.paid_date || '—')}</td>
+                <td class="muted nowrap">${esc(i.paid_date || '—')}
+                  ${(i.warnings || []).length ? badge('날짜 확인', 'warning') : ''}</td>
                 <td class="num">${i.amount ? won(i.amount) : '<span class="muted">—</span>'}</td>
                 <td class="muted">${esc(i.proof_kind || '—')}</td>
                 <td>${badge(i.status, i.tone)}</td>
-              </tr>`).join('')}
+              </tr>
+              ${(i.warnings || []).map((w) => `
+                <tr><td></td><td colspan="5" class="muted" style="font-size:12px;padding-top:0">
+                  ⚠ ${esc(w)}</td></tr>`).join('')}`).join('')}
           </tbody>
         </table>
       </div>
@@ -351,6 +355,8 @@ function openBatchModal(res, ctx) {
           const out = await api.post('/api/fulfillment/confirm-batch', { items });
           toast(out.message, out.failed.length ? 'error' : '');
           out.failed.forEach((f) => toast(`${f.no}회차: ${f.error}`, 'error'));
+          // 날짜가 앞선 건은 막지 않고 알린다. 회차 표에도 '날짜 확인'으로 남는다.
+          (out.warnings || []).forEach((w) => toast(`${w.no}회차: ${w.message}`, 'error'));
           close();
           ctx.reload();
         } catch (err) {

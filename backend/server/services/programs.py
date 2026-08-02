@@ -52,6 +52,10 @@ def create(payload: dict) -> dict:
         "methods": payload.get("methods") or ["정기", "일시"],
         "reward": payload.get("reward", ""),
         "template_id": payload.get("template_id") or "tpl_regular",
+        # 유산기부용 서식. 비어 있으면 그 사업은 유산기부를 받지 않는다.
+        # 기본 서식으로 대신하면 유산기부자에게 회차 금액·납부 주기를 묻게 되므로
+        # 슬쩍 대체하지 않고 명시적으로 비워 둔다.
+        "legacy_template_id": payload.get("legacy_template_id") or None,
         "description": payload.get("description", ""),
         "tags": payload.get("tags") or suggest_tags(
             f"{payload['name']} {payload.get('description', '')}"
@@ -70,6 +74,26 @@ def update(program_id: str, payload: dict) -> dict:
     merged = {**existing, **payload, "id": program_id}
     store.upsert("programs", merged)
     return merged
+
+
+def delete(program_id: str, agreement_count: int) -> dict:
+    """모금 사업을 지운다.
+
+    보관(archive)과는 다르다. 보관은 기부자 화면에서만 감추고 약정·집계를 그대로
+    남기는 것이고, 삭제는 사업 자체를 없앤다. 그래서 **약정이 하나라도 있으면 막는다.**
+    지워버리면 그 약정들의 대상 사업이 사라져 대시보드·리포트 집계가 조용히 어긋난다.
+    잘못 만든 사업을 치우는 용도이고, 운영하던 사업은 보관을 쓴다.
+    """
+    program = get(program_id)
+    if not program:
+        raise ValueError(f"모금 사업을 찾을 수 없습니다: {program_id}")
+    if agreement_count:
+        raise ValueError(
+            f"'{program['name']}' 사업에는 약정이 {agreement_count}건 있어 삭제할 수 없습니다. "
+            "기부자 화면에서 감추려면 '보관'을 이용해주세요."
+        )
+    store.remove("programs", program_id)
+    return program
 
 
 def set_status(program_id: str, status: str) -> dict:

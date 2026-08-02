@@ -9,22 +9,29 @@ import * as w3 from './views/w3_at_risk.js';
 import * as w4 from './views/w4_detail.js';
 import * as w5 from './views/w5_form_parse.js';
 import * as w6 from './views/w6_template_editor.js';
+import * as w7list from './views/w7_programs.js';
 import * as w7 from './views/w7_program_new.js';
+import * as w7detail from './views/w7_program_detail.js';
 import * as w8 from './views/w8_fulfillment.js';
 import * as w9 from './views/w9_reports.js';
+import * as w10 from './views/w10_legacy.js';
 
 // 사이드바 메뉴 → 어떤 화면이 어느 메뉴에 속하는지
 const NAV = [
   { key: 'dashboard', label: '대시보드', href: '#/dashboard' },
   { key: 'donations', label: '기부 현황', href: '#/donations' },
   { key: 'fulfillment', label: '이행 관리', href: '#/fulfillment' },
-  // 서식은 사업에 연결해 쓰는 것이라 같은 메뉴 아래에 두고 화면 안에서 전환한다.
-  { key: 'programs', label: '모금 사업', href: '#/programs/new' },
+  // 유산기부는 금액이 아니라 건수로 관리하고 사후에 수령을 기록해서 따로 둔다.
+  { key: 'legacy', label: '유산 약정', href: '#/legacy' },
+  // 서식은 사업에 연결해 쓰는 것이라 메뉴를 따로 두지 않는다.
+  // 모금 사업 목록의 '계약서 서식 관리' 버튼으로 들어간다.
+  { key: 'programs', label: '모금 사업', href: '#/programs' },
   { key: 'reports', label: '리포트', href: '#/reports' },
   { key: 'settings', label: '설정', href: '#/settings' },
 ];
 
 // 경로 패턴 → 화면 모듈
+// /programs/new 가 /programs/:id 보다 먼저 와야 한다(new를 id로 잡으면 안 된다).
 const ROUTES = [
   { re: /^\/dashboard$/, view: w1, nav: 'dashboard' },
   { re: /^\/donations$/, view: w2, nav: 'donations' },
@@ -32,8 +39,11 @@ const ROUTES = [
   { re: /^\/donations\/([\w-]+)$/, view: w4, nav: 'donations', params: ['documentId'] },
   { re: /^\/templates\/new$/, view: w5, nav: 'programs' },
   { re: /^\/templates\/([\w-]+)\/edit$/, view: w6, nav: 'programs', params: ['templateId'] },
+  { re: /^\/programs$/, view: w7list, nav: 'programs' },
   { re: /^\/programs\/new$/, view: w7, nav: 'programs' },
+  { re: /^\/programs\/([\w-]+)$/, view: w7detail, nav: 'programs', params: ['programId'] },
   { re: /^\/fulfillment$/, view: w8, nav: 'fulfillment' },
+  { re: /^\/legacy$/, view: w10, nav: 'legacy' },
   { re: /^\/reports$/, view: w9, nav: 'reports' },
 ];
 
@@ -83,6 +93,20 @@ function parseHash() {
   return { route: null, params: {}, search, path };
 }
 
+// 화면을 그릴 때마다 본문 컨테이너를 새로 만든다.
+//
+// innerHTML만 갈아끼우면 엘리먼트는 그대로라, 화면이 root에 붙여 둔 이벤트
+// 리스너가 계속 쌓인다. 같은 화면에 세 번 들어오면 클릭 한 번에 창이 세 번 뜬다.
+// 엘리먼트를 통째로 갈면 옛 리스너도 함께 사라진다.
+function freshContent() {
+  const old = document.getElementById('content');
+  const el = document.createElement('div');
+  el.id = old.id;
+  el.className = old.className;
+  old.replaceWith(el);
+  return el;
+}
+
 function setActiveNav(key) {
   document.querySelectorAll('#nav a').forEach((a) => {
     a.classList.toggle('on', a.dataset.nav === key);
@@ -93,7 +117,7 @@ let renderToken = 0;
 
 async function render() {
   const { route, params, search, path } = parseHash();
-  const content = document.getElementById('content');
+  const content = freshContent();
   const titleEl = document.getElementById('page-title');
   const tagEl = document.getElementById('screen-tag');
   const actionsEl = document.getElementById('page-actions');

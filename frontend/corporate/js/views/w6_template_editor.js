@@ -20,6 +20,11 @@ const ASSIGNEES = ['기부자', '담당자', '입회인'];
 // 값이 채워져 있으면 기관 몫이다. 챗봇은 이 항목을 묻지 않는다.
 const isFilled = (f) => typeof f.value === 'boolean' || String(f.value ?? '').trim() !== '';
 
+// 서명란은 기부자가 채우는 항목이 아니고, 체크는 동의 항목이라 필수 개념이 없다.
+const isRequirable = (f) => f.type !== 'sign' && f.type !== 'check';
+// 서버(agreements.contract_form)와 같은 기본값을 쓴다.
+const isRequired = (f) => f.required ?? (f.type !== 'check');
+
 export async function render(root, ctx) {
   const { templateId } = ctx.params;
   const source = await loadSource(templateId);
@@ -71,7 +76,9 @@ export async function render(root, ctx) {
           <div class="note" style="margin-top:14px">
             <b style="color:var(--ink)">값을 미리 채운 항목은 챗봇이 묻지 않습니다.</b><br>
             후원기관명·담당 부서처럼 기관이 정하는 값은 여기 적어두세요.
-            비워 둔 항목만 기부자가 개인용 웹에서 채웁니다.
+            비워 둔 항목만 기부자가 개인용 웹에서 채웁니다.<br>
+            <b style="color:var(--ink)">필수</b>를 끄면 기부자가 건너뛸 수 있고,
+            <b style="color:var(--ink)">선택</b> 항목은 보기를 직접 적어두면 그 보기로 물어봅니다.
           </div>
         </div>
       </div>
@@ -94,9 +101,18 @@ export async function render(root, ctx) {
         <select class="f-assignee" style="border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-size:12px">
           ${ASSIGNEES.map((a) => `<option value="${a}" ${f.assignee === a ? 'selected' : ''}>${a}</option>`).join('')}
         </select>
+        ${isRequirable(f) ? `
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-2);cursor:pointer">
+            <input type="checkbox" class="f-required" ${isRequired(f) ? 'checked' : ''}>필수
+          </label>` : ''}
         <span class="spacer"></span>
         <button class="btn sm ghost" data-move="${i}" title="위로">↑</button>
         <button class="btn sm ghost" data-remove="${i}" title="삭제">✕</button>
+        ${f.type === 'select' ? `
+          <input class="f-options" value="${esc((f.options || []).join(', '))}"
+                 placeholder="선택 보기 — 쉼표로 구분 (비우면 자동 추천)"
+                 style="flex:1 1 100%;border:1px solid var(--line);border-radius:6px;
+                        padding:6px 9px;font-size:12.5px">` : ''}
         ${f.type === 'sign' ? '' : `
           <input class="f-value" value="${esc(f.value ?? '')}"
                  placeholder="기관이 미리 채울 값 (비우면 기부자가 입력)"
@@ -121,6 +137,9 @@ export async function render(root, ctx) {
     if (!row) return;
     const f = fields[Number(row.dataset.i)];
     if (e.target.matches('.f-label')) f.label = e.target.value;
+    if (e.target.matches('.f-options')) {
+      f.options = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+    }
     // 값 입력은 타이핑마다 다시 그리면 포커스가 튄다. 카운트만 갱신한다.
     if (e.target.matches('.f-value')) { f.value = e.target.value; paintCount(); }
   });
@@ -131,6 +150,7 @@ export async function render(root, ctx) {
     const f = fields[Number(row.dataset.i)];
     if (e.target.matches('.f-type')) f.type = e.target.value;
     if (e.target.matches('.f-assignee')) f.assignee = e.target.value;
+    if (e.target.matches('.f-required')) f.required = e.target.checked;
     paint();
   });
 

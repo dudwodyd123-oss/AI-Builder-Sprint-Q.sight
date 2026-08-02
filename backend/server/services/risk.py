@@ -27,6 +27,12 @@ DEFAULT_RULES = {
         "enabled": True, "days": 30, "label": "만료 임박",
         "action": "갱신 제안", "severity": "muted",
     },
+    # 유산 약정에 서명해 두고 녹음유언을 만들지 않은 분. 서명만으로는 유언이 되지
+    # 않으므로(민법 제1065조 요식성) 담당자가 연락해 도와줄 대상이다.
+    "legacy_no_recording": {
+        "enabled": True, "days": 14, "label": "녹음유언 미완료",
+        "action": "연락하기", "severity": "warning",
+    },
 }
 
 
@@ -76,6 +82,14 @@ def build(documents: list[dict], today: date | None = None) -> dict:
             rows.append(_row(doc, r, "viewed_not_signed",
                              f"약정서를 열어보고 {days}일째 서명하지 않았습니다",
                              priority=days))
+
+        r = rules["legacy_no_recording"]
+        waiting = d["days_without_recording"]
+        if r["enabled"] and waiting is not None and waiting >= r["days"]:
+            rows.append(_row(doc, r, "legacy_no_recording",
+                             f"유산 약정에 서명한 지 {waiting}일째 녹음유언이 없습니다 · "
+                             "서명만으로는 유언이 되지 않습니다",
+                             priority=waiting))
 
         r = rules["expiring_soon"]
         remaining = d["days_to_expiry"]

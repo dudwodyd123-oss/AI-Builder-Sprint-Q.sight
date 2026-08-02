@@ -15,7 +15,7 @@
 | 실행 방법 | 아래 [Q.sight 실행하기](#qsight-실행하기) — 서버 3개를 순서대로 |
 | 핵심 차별점 | 유산기부 **녹음유언** (민법 제1067조 요식행위를 화면이 안내) |
 | AI 활용 | Upstage Solar Pro 2 · Document Parse · Information Extract |
-| 개발 문서 | [기관용](backend/README.md) · [기부자용](qsight_client/README.md) |
+| 개발 문서 | [기관용](qsight_corp/backend/README.md) · [기부자용](qsight_client/README.md) |
 
 ---
 
@@ -76,9 +76,20 @@
                              └──▶ Upstage Solar (AI 챗봇)
 ```
 
+저장소는 두 웹으로 나뉩니다.
+
+```text
+qsight_corp/      기관용 — 모금 담당자가 쓰는 쪽
+  backend/          FastAPI 서버 (기관용 화면도 여기서 서빙)  :8080
+  frontend/         기관용 화면 (W1~W10)
+qsight_client/    기부자용 — 기부자가 쓰는 쪽
+  server/           Node 서버 (AI 챗봇, 기관 API 중계)        :4000
+  client/           React 화면                                :5173
+```
+
 | 폴더 | 역할 | 포트 |
 | --- | --- | --- |
-| `backend/` | 기관용 서버 — 사업·계약서식·약정·전자서명 (기관용 웹 화면 포함) | 8080 |
+| `qsight_corp/backend/` | 기관용 서버 — 사업·계약서식·약정·전자서명 (기관용 웹 화면 포함) | 8080 |
 | `qsight_client/server/` | 기부자용 서버 — AI 챗봇, 기관 API 중계 | 4000 |
 | `qsight_client/client/` | 기부자용 화면 (React) | 5173 |
 
@@ -98,8 +109,8 @@ JSON 파일로 저장되며, 첫 실행 시 자동으로 만들어집니다.
 ### 1. 기관용 서버 (먼저 실행)
 
 ```bash
-pip install -r backend/requirements.txt
-python -m uvicorn server.main:app --port 8080 --app-dir backend --reload
+pip install -r qsight_corp/backend/requirements.txt
+python -m uvicorn server.main:app --port 8080 --app-dir qsight_corp/backend --reload
 ```
 
 - 기관용 웹 — http://localhost:8080/corporate/
@@ -134,7 +145,7 @@ http://localhost:5173 으로 접속합니다.
 | 키 | 넣는 곳 | 없으면 |
 | --- | --- | --- |
 | `UPSTAGE_API_KEY` | `qsight_client/server/.env` | **AI 챗봇 상담만 사용 불가** (그 외 전부 정상) |
-| `MODUSIGN_EMAIL`·`MODUSIGN_API_KEY` | `backend/.env` | 데모 모드로 동작 (실제 서명 메일 미발송) |
+| `MODUSIGN_EMAIL`·`MODUSIGN_API_KEY` | `qsight_corp/backend/.env` | 데모 모드로 동작 (실제 서명 메일 미발송) |
 | `MODUSIGN_EMAIL`·`MODUSIGN_API_KEY` | `qsight_client/server/.env` | 증서함의 서명 문서 목록만 비활성화 |
 
 `.env` 파일은 저장소에 포함되지 않습니다. 각 폴더의 `.env.example`을 `.env`로 복사한 뒤
@@ -148,7 +159,7 @@ curl http://localhost:8080/api/health
 curl http://localhost:4000/api/health
 ```
 
-각 폴더의 README에 더 자세한 설명이 있습니다 — [backend/README.md](backend/README.md),
+각 폴더의 README에 더 자세한 설명이 있습니다 — [backend/README.md](qsight_corp/backend/README.md),
 [qsight_client/README.md](qsight_client/README.md).
 
 ### 테스트하실 때 알아두실 점

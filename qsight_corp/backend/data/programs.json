@@ -1,0 +1,84 @@
+[
+  {
+    "id": "prog_1",
+    "name": "금정산성 보존 지원",
+    "goal_amount": 30000000,
+    "start_date": "2026-03-01",
+    "end_date": "2026-12-31",
+    "methods": [
+      "정기",
+      "일시",
+      "봉사",
+      "유산"
+    ],
+    "reward": "금정산 트레킹 이용권 외 2건",
+    "template_id": "tpl_regular",
+    "legacy_template_id": "tpl_legacy",
+    "tags": [
+      "문화재",
+      "보존",
+      "정기",
+      "부산 금정구"
+    ],
+    "description": "금정산성 성곽 보수와 주변 정비를 위한 상시 모금 사업입니다."
+  },
+  {
+    "id": "prog_2",
+    "name": "근대건축물 기록화",
+    "goal_amount": 18000000,
+    "start_date": "2026-01-15",
+    "end_date": "2026-11-30",
+    "methods": [
+      "정기",
+      "일시"
+    ],
+    "reward": "기록집 1부",
+    "template_id": "tpl_regular",
+    "tags": [
+      "근대유산",
+      "아카이브",
+      "부산 중구"
+    ],
+    "description": "원도심 근대건축물을 3D 스캔·사진으로 기록해 아카이브로 남깁니다."
+  },
+  {
+    "id": "prog_3",
+    "name": "전통시장 아카이브",
+    "goal_amount": 12000000,
+    "start_date": "2026-02-01",
+    "end_date": "2026-10-31",
+    "methods": [
+      "일시",
+      "봉사"
+    ],
+    "reward": "전통시장 상품권",
+    "template_id": "tpl_onetime",
+    "tags": [
+      "생활유산",
+      "구술채록",
+      "부산 동구"
+    ],
+    "description": "부산 전통시장 상인 구술 채록과 사진 아카이브 구축 사업입니다."
+  },
+  {
+    "id": "prog_4",
+    "name": "청소년 문화유산 교실",
+    "goal_amount": 9000000,
+    "start_date": "2026-04-01",
+    "end_date": "2026-12-15",
+    "methods": [
+      "정기",
+      "봉사",
+      "유산"
+    ],
+    "reward": "감사패 · 연간 리포트",
+    "template_id": "tpl_regular",
+    "legacy_template_id": "tpl_legacy",
+    "tags": [
+      "교육",
+      "청소년",
+      "봉사"
+    ],
+    "description": "지역 청소년 대상 문화유산 체험 교육 프로그램 운영비를 모읍니다."
+  }
+]

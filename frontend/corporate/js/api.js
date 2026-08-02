@@ -15,7 +15,9 @@ async function handle(res) {
 }
 
 export const api = {
-  get: (path) => fetch(`${API_BASE}${path}`).then(handle),
+  // 브라우저가 GET 응답을 캐시하면 방금 바꾼 값이 화면에 안 나타난다.
+  // 새로고침해야 보이는 화면은 담당자가 저장이 안 된 줄 안다.
+  get: (path) => fetch(`${API_BASE}${path}`, { cache: 'no-store' }).then(handle),
 
   post: (path, body) =>
     fetch(`${API_BASE}${path}`, {

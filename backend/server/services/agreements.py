@@ -344,12 +344,74 @@ def get_record(agreement_id: str) -> dict | None:
     return store.find("agreements", agreement_id)
 
 
+# ── 유산기부 녹음 완료 통보 ─────────────────────────────────
+# 개인용 웹이 녹음유언을 만들면 "만들었다는 사실"만 알려온다.
+# 녹음 파일·대본·유언 내용·증인 신원은 오지 않고, 요청해서도 안 된다.
+# 생전에 기관이 유언 내용을 열람하면 부당한 영향력 행사 의혹의 빌미가 된다.
+RECORDING_STATUSES = ("recorded", "verified")
+
+
+def save_recording_notice(notice: dict) -> dict:
+    """녹음 완료 사실을 약정 레코드에 남긴다.
+
+    같은 건이 recorded → verified 로 두 번 오는 것이 정상이고, 실패하면 개인용이
+    나중에 다시 보낸다. 그래서 멱등해야 한다. 다만 재시도가 뒤늦게 도착해
+    verified가 recorded로 되돌아가면 안 된다. 파일 지문이 같으면 같은 녹음이라
+    보고 약한 상태로 덮어쓰지 않는다(다시 녹음하면 지문이 달라진다).
+    """
+    status = notice.get("status")
+    if status not in RECORDING_STATUSES:
+        raise ValueError(f"알 수 없는 녹음 상태입니다: {status}")
+
+    record = get_record(notice["agreement_id"])
+    if not record:
+        raise LookupError(f"약정을 찾을 수 없습니다: {notice['agreement_id']}")
+    if record.get("donation_type") != "legacy":
+        raise ValueError("유산기부 약정이 아닙니다.")
+
+    before = record.get("legacy_recording") or {}
+    same_recording = before.get("sha256") and before["sha256"] == notice.get("sha256")
+    if same_recording and before.get("status") == "verified" and status == "recorded":
+        return record  # 늦게 도착한 재시도. 이미 확인까지 끝난 건을 되돌리지 않는다.
+
+    record["legacy_recording"] = {
+        "pledge_id": notice.get("pledge_id"),
+        "status": status,
+        "recorded_at": notice.get("recorded_at"),
+        "duration_ms": notice.get("duration_ms"),
+        "sha256": notice.get("sha256"),
+        "has_witness": bool(notice.get("has_witness")),
+        "checklist_passed": notice.get("checklist_passed") or 0,
+        "checklist_total": notice.get("checklist_total") or 0,
+        "spec_version": notice.get("spec_version"),
+        "received_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    store.upsert("agreements", record)
+    return record
+
+
+def recordings_by_document() -> dict[str, dict]:
+    """문서 id → 녹음 통보. 약정 문서에 합쳐 화면으로 내보낼 때 쓴다."""
+    return {
+        r["document_id"]: r["legacy_recording"]
+        for r in store.read_list("agreements")
+        if r.get("document_id") and r.get("legacy_recording")
+    }
+
+
 async def status(agreement_id: str) -> dict:
-    """모두싸인에서 최신 서명 상태를 읽어 기록에 반영한다."""
+    """모두싸인에서 최신 서명 상태를 읽어 기록에 반영한다.
+
+    개인용 웹이 10초마다 폴링하므로 부를 때마다 모두싸인을 찌르면 rate limit을
+    계속 먹는다. 웹훅으로 방금 갱신된 건은 로컬이 이미 최신이라 다시 묻지 않는다.
+    웹훅이 붙어 있지 않으면 last_event가 없어 예전처럼 매번 확인한다.
+    """
     record = get_record(agreement_id)
     if not record:
         raise ValueError(f"약정을 찾을 수 없습니다: {agreement_id}")
     if not record.get("document_id"):
+        return record
+    if _webhook_fresh(record):
         return record
 
     doc = await modusign.fetch_document_fresh(record["document_id"])
@@ -359,6 +421,27 @@ async def status(agreement_id: str) -> dict:
             record["signed_at"] = doc["completed_at"]
         store.upsert("agreements", record)
     return record
+
+
+# 웹훅으로 갱신된 뒤 이 시간 안에는 모두싸인에 다시 묻지 않는다.
+WEBHOOK_FRESH_SECONDS = 120
+
+
+def _webhook_fresh(record: dict) -> bool:
+    """웹훅이 방금 이 약정을 갱신했는가.
+
+    끝난 문서(체결·거절·취소)만 해당한다. 진행 중인 건은 계속 확인해야 한다.
+    """
+    if not record.get("last_event") or record.get("status") == "ON_GOING":
+        return False
+    stamp = record.get("webhook_at")
+    if not stamp:
+        return False
+    try:
+        age = (datetime.now() - datetime.fromisoformat(stamp)).total_seconds()
+    except ValueError:
+        return False
+    return 0 <= age < WEBHOOK_FRESH_SECONDS
 
 
 def mark_from_webhook(document_id: str, event: str) -> dict | None:
@@ -374,6 +457,8 @@ def mark_from_webhook(document_id: str, event: str) -> dict | None:
         elif event in ("document_request_canceled", "document_signing_canceled"):
             record["status"] = "CANCELED"
         record["last_event"] = event
+        # 폴링이 이 시각을 보고 모두싸인을 다시 부를지 정한다.
+        record["webhook_at"] = datetime.now().isoformat(timespec="seconds")
         store.upsert("agreements", record)
         return record
     return None

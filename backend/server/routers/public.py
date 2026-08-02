@@ -28,6 +28,26 @@ class Signer(BaseModel):
     email: str
 
 
+class LegacyRecordingNotice(BaseModel):
+    """개인용 웹이 알려오는 유산기부 녹음 완료 '사실'.
+
+    녹음 파일·대본·유언 내용·증인 신원은 오지 않는다. 증인은 있었는지(has_witness)만
+    받는다. 생전에 기관이 유언 내용을 열람하면 부당한 영향력 행사 의혹의 빌미가 된다.
+    """
+
+    agreement_id: str
+    pledge_id: str
+    program_id: str | None = None
+    status: str                      # "recorded" | "verified"
+    recorded_at: str
+    duration_ms: int | None = None
+    sha256: str
+    has_witness: bool = False
+    checklist_passed: int = 0
+    checklist_total: int = 0
+    spec_version: str | None = None
+
+
 class CreateAgreementRequest(BaseModel):
     program_id: str
     # 챗봇이 모은 값. 키는 contract-form이 알려준 field.key와 같아야 한다.
@@ -127,6 +147,28 @@ async def create_agreement(body: CreateAgreementRequest):
         "status": record["status"],
         "message": f"{record['signer_email']} 으로 서명 요청을 보냈습니다. "
                    "메일함에서 서명을 완료해주세요.",
+    }
+
+
+@router.post("/legacy/recordings")
+async def legacy_recording(body: LegacyRecordingNotice):
+    """유산기부 녹음유언이 만들어졌다는 사실을 받아 약정에 남긴다.
+
+    같은 건이 recorded → verified 로 두 번 오는 것이 정상이고, 실패하면 개인용이
+    나중에 다시 보낸다. 멱등하게 처리한다.
+    """
+    try:
+        record = svc.save_recording_notice(body.model_dump())
+    except LookupError as e:
+        raise HTTPException(404, str(e)) from e
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+    return {
+        "agreement_id": record["id"],
+        "legacy_recording": record["legacy_recording"],
+        "message": "녹음 확인 완료를 기록했습니다." if body.status == "verified"
+                   else "녹음 완료를 기록했습니다.",
     }
 
 

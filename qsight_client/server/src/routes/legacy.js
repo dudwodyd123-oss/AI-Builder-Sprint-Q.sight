@@ -1,7 +1,7 @@
 import { Router, raw } from "express";
 import { upstageToolCall } from "../lib/upstage.js";
 import { COLLECT_INFO_TOOL, buildExtractionMessages } from "../lib/prompts.js";
-import { getLiveContractForm } from "../lib/corp.js";
+import { getLiveContractForm, notifyLegacyRecording } from "../lib/corp.js";
 import { missingFields, sanitizeValues, hasNumericBasis } from "../lib/fields.js";
 import { loadLegacySpec, collectFields, chatFields, bequestTypeByLabel } from "../lib/legacySpec.js";
 import { renderScript, bequestPhrase, todayISO } from "../lib/legacyScript.js";
@@ -18,6 +18,54 @@ const router = Router();
 
 /** 녹음 최대 길이(10분)에 여유를 둔 업로드 상한 */
 const MAX_RECORDING = "40mb";
+
+/**
+ * 녹음 완료 사실을 기업용에 알린다.
+ *
+ * 보내는 것은 "사실"뿐이다 — 녹음이 존재하는지, 언제·얼마나 길게 했는지, 파일 지문,
+ * 증인 등록 여부, 자가 확인 통과 수. **녹음 파일과 대본 내용은 보내지 않는다.**
+ * 생전에 기관이 유언 내용을 열람하면 부당한 영향력 행사 의혹의 빌미가 되기 때문이다.
+ *
+ * 이 호출이 실패해도 기부자의 진행은 막지 않는다. 기관에 알리는 것은 부가적인 일이고,
+ * 녹음 자체는 이미 저장되어 있기 때문이다. 실패는 레코드에 남겨 두었다가 다음에 다시 시도한다.
+ *
+ * @returns 갱신된 레코드 (알림을 시도하지 않았으면 받은 그대로)
+ */
+async function notifyCorp(record, status) {
+  // 서명(의향 등록)이 없으면 기업용에 붙일 약정이 없다
+  if (!record.agreement_id || !record.recording) return record;
+  // 같은 상태를 이미 알렸으면 다시 보내지 않는다
+  if (record.corp_notified_status === status) return record;
+
+  const checklist = record.checklist || [];
+  const payload = {
+    agreement_id: record.agreement_id,
+    pledge_id: record.id,
+    program_id: record.program_id,
+    status, // recorded = 녹음 저장됨 / verified = 자가 확인까지 마침
+    recorded_at: record.recording.recorded_at,
+    duration_ms: record.recording.duration_ms,
+    sha256: record.recording.sha256,
+    // 증인은 이름 없이 등록 여부만 보낸다 (사후 집행 때 개인용에서 조회하면 된다)
+    has_witness: Boolean(record.witness?.name),
+    checklist_passed: checklist.filter((c) => c.checked).length,
+    checklist_total: checklist.length,
+    spec_version: record.script_spec_version || record.spec_version,
+  };
+
+  try {
+    await notifyLegacyRecording(payload);
+    return updateRecord(record.id, {
+      corp_notified_at: new Date().toISOString(),
+      corp_notified_status: status,
+      corp_notify_error: null,
+    });
+  } catch (e) {
+    // 기업용에 아직 수신 엔드포인트가 없으면 404가 온다. 그것도 실패로 남겨 두고 넘어간다.
+    console.warn(`[legacy:notify] ${record.id} (${status}) 실패:`, e.message);
+    return updateRecord(record.id, { corp_notify_error: e.message });
+  }
+}
 
 /**
  * 코드가 대신 채우는 항목을 채워 넣는다.
@@ -72,6 +120,8 @@ function publicRecord(record) {
     documentId: record.document_id || null,
     supersedes: record.supersedes || null,
     supersededBy: record.superseded_by || null,
+    corpNotifiedAt: record.corp_notified_at || null,
+    corpNotifiedStatus: record.corp_notified_status || null,
     witness: record.witness,
     checklist: record.checklist,
     recording: record.recording
@@ -308,7 +358,16 @@ router.post("/pledges/:id/redo", async (req, res) => {
 router.get("/pledges/:id", async (req, res) => {
   try {
     const spec = loadLegacySpec();
-    const record = await readRecord(req.params.id);
+    let record = await readRecord(req.params.id);
+
+    // 기업용에 알리지 못한 채 남아 있으면 조회할 때 한 번 더 시도한다.
+    // (기업용 서버가 잠깐 꺼져 있었거나 수신 엔드포인트가 나중에 열린 경우)
+    const done = (record.checklist || []).length > 0 && record.checklist.every((c) => c.checked);
+    const target = done ? "verified" : "recorded";
+    if (record.recording && record.agreement_id && record.corp_notified_status !== target) {
+      record = await notifyCorp(record, target);
+    }
+
     res.json(withScript(spec, record));
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message, code: e.code });
@@ -397,7 +456,14 @@ router.patch("/pledges/:id", async (req, res) => {
       patch.document_id = String(documentId || "").trim() || null;
     }
 
-    const next = await updateRecord(record.id, patch);
+    let next = await updateRecord(record.id, patch);
+
+    // 자가 확인을 모두 마치면 "요건을 갖춘 녹음이 있다"는 사실을 기관에 알린다.
+    // 서명만 한 사람과 녹음까지 마친 사람은 기관 입장에서 완전히 다른 건이다.
+    const done =
+      (next.checklist || []).length > 0 && next.checklist.every((c) => c.checked);
+    if (checklist !== undefined && done) next = await notifyCorp(next, "verified");
+
     res.json(withScript(spec, next));
   } catch (e) {
     console.error("[legacy:patch] error:", e.message);
@@ -463,11 +529,14 @@ router.post(
         },
       });
 
-      const next = await updateRecord(record.id, {
+      let next = await updateRecord(record.id, {
         recording,
         script_rendered: rendered.text,
         script_spec_version: spec.version,
       });
+
+      // 기관에 "녹음이 저장됐다"는 사실을 알린다. 실패해도 진행은 막지 않는다.
+      next = await notifyCorp(next, "recorded");
 
       res.status(201).json(withScript(spec, next));
     } catch (e) {

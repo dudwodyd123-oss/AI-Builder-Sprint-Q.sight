@@ -102,3 +102,19 @@ export function createAgreement({ programId, values, signer, donationType = "def
 export function getAgreement(agreementId) {
   return corpFetch(`/api/public/agreements/${encodeURIComponent(agreementId)}`);
 }
+
+/**
+ * ⑤ 유산기부 녹음 완료 "사실"만 기업용에 알린다.
+ *
+ * 서명만 한 사람과 녹음까지 마친 사람은 법적으로 완전히 다른데(녹음이 있어야
+ * 민법 제1067조 녹음유언 요건을 논할 수 있다), 기업용은 그 차이를 알 방법이 없었다.
+ *
+ * ⚠️ 녹음 파일과 대본 내용은 보내지 않는다. 생전에 기관이 유언 내용을 열람하면
+ *    부당한 영향력 행사 의혹의 빌미가 된다. 증인도 이름 없이 등록 여부만 보낸다.
+ */
+export function notifyLegacyRecording(payload) {
+  return corpFetch("/api/public/legacy/recordings", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

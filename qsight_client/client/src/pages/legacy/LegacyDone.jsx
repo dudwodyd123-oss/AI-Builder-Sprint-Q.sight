@@ -135,6 +135,23 @@ export default function LegacyDone() {
               </td>
             </tr>
             <tr>
+              <th>기관 통보</th>
+              <td>
+                {pledge?.corpNotifiedAt ? (
+                  <>
+                    <span className="badge badge-success">
+                      {pledge.corpNotifiedStatus === "verified" ? "녹음 확인 완료 전달" : "녹음 저장 전달"}
+                    </span>
+                    <span className="text-muted" style={{ fontSize: 12.5, marginLeft: 8 }}>
+                      {new Date(pledge.corpNotifiedAt).toLocaleString("ko-KR")}
+                    </span>
+                  </>
+                ) : (
+                  <span className="badge badge-muted">전달 대기</span>
+                )}
+              </td>
+            </tr>
+            <tr>
               <th>등록 번호</th>
               <td style={{ fontSize: 12.5, wordBreak: "break-all" }}>{pledgeId}</td>
             </tr>
@@ -203,8 +220,9 @@ export default function LegacyDone() {
           />
         </div>
         <p className="hint">
-          녹음 파일은 기관에 보내지 않고 이 서비스에만 보관됩니다. 생전에 기관이 유언 내용을
-          열람하지 않도록 하기 위해서예요.
+          녹음 파일과 유언 내용은 기관에 보내지 않고 이 서비스에만 보관됩니다. 생전에 기관이
+          유언 내용을 열람하지 않도록 하기 위해서예요. 기관에는 <strong>녹음을 마쳤다는 사실</strong>과
+          녹음 시각·파일 지문만 전달됩니다.
         </p>
       </Card>
 

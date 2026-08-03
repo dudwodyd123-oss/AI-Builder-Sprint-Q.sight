@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import Card from "../components/Card.jsx";
+import Icon from "../components/Icon.jsx";
 import { api } from "../api.js";
 import { usePledgeFlow, STATUS_LABEL } from "../context/PledgeContext.jsx";
 import { toSummaryRows } from "../format.js";
@@ -91,7 +92,7 @@ export default function AgreementWait() {
         <div className="center-col" style={{ padding: "20px 0" }}>
           {signed ? (
             <>
-              <div style={{ fontSize: 42, marginBottom: 10 }}>🎉</div>
+              <div style={{ marginBottom: 10, color: "var(--accent)" }}><Icon name="celebration" size={42} /></div>
               <p style={{ fontWeight: 700, fontSize: 18, margin: 0 }}>서명이 완료되었습니다</p>
               <p className="text-muted" style={{ fontSize: 14, marginTop: 8, lineHeight: 1.7 }}>
                 {status?.signedAt && `${new Date(status.signedAt).toLocaleString("ko-KR")} · `}
@@ -100,7 +101,7 @@ export default function AgreementWait() {
             </>
           ) : closed ? (
             <>
-              <div style={{ fontSize: 42, marginBottom: 10 }}>🚫</div>
+              <div style={{ marginBottom: 10, color: "var(--danger)" }}><Icon name="block" size={42} /></div>
               <p style={{ fontWeight: 700 }}>서명이 완료되지 않았어요.</p>
               <p className="text-muted" style={{ fontSize: 13.5, marginTop: 6 }}>
                 다시 진행하려면 약정을 새로 시작해주세요.
@@ -206,21 +207,21 @@ export default function AgreementWait() {
           {signed ? (
             <>
               <button className="next-step" onClick={() => navigate("/documents")}>
-                <span className="next-step-icon">📜</span>
+                <span className="next-step-icon"><Icon name="history_edu" /></span>
                 <span>
                   <strong>나의 증서함</strong>
                   <em>지금 약정서를 포함해 서명한 문서를 모아 봐요</em>
                 </span>
               </button>
               <button className="next-step" onClick={() => navigate("/programs")}>
-                <span className="next-step-icon">💛</span>
+                <span className="next-step-icon"><Icon name="volunteer_activism" /></span>
                 <span>
                   <strong>다른 사업도 후원하기</strong>
                   <em>진행 중인 다른 모금 사업을 둘러봐요</em>
                 </span>
               </button>
               <button className="next-step" onClick={() => navigate("/home")}>
-                <span className="next-step-icon">🏠</span>
+                <span className="next-step-icon"><Icon name="home" /></span>
                 <span>
                   <strong>홈으로</strong>
                   <em>처음 화면으로 돌아가요</em>
@@ -230,7 +231,7 @@ export default function AgreementWait() {
           ) : (
             <>
               <div className="next-step as-note">
-                <span className="next-step-icon">📩</span>
+                <span className="next-step-icon"><Icon name="mark_email_read" /></span>
                 <span>
                   <strong>메일함에서 서명하기</strong>
                   <em>
@@ -240,7 +241,7 @@ export default function AgreementWait() {
                 </span>
               </div>
               <button className="next-step" onClick={() => navigate("/home")}>
-                <span className="next-step-icon">🏠</span>
+                <span className="next-step-icon"><Icon name="home" /></span>
                 <span>
                   <strong>나중에 하기</strong>
                   <em>홈으로 나가도 서명 요청은 그대로 남아 있어요</em>

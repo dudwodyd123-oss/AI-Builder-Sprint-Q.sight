@@ -8,7 +8,6 @@ import { api } from '../api.js';
 import { badge, esc, modal, num, toast, won } from '../ui.js';
 
 export const TITLE = '이행 관리';
-export const SCREEN = 'W8';
 
 export async function render(root, ctx) {
   const programId = ctx.search.get('program');

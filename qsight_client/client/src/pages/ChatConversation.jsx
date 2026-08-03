@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import Card from "../components/Card.jsx";
+import Icon from "../components/Icon.jsx";
 import { api } from "../api.js";
 import { usePledgeFlow } from "../context/PledgeContext.jsx";
+import { rememberChatHistoryId } from "../chatHistoryLocal.js";
 import { isFilled, buildAssistantMessage, withTopicParticle, toSummaryRows } from "../format.js";
 import { profileValues } from "../profile.js";
 
@@ -18,6 +20,7 @@ export default function ChatConversation() {
   const [notice, setNotice] = useState("");
   const [archived, setArchived] = useState(false); // 기관이 사업을 보관하면 더 진행할 수 없다
   const scrollRef = useRef(null);
+  const historySavedRef = useRef(false); // 항목이 다 채워졌을 때 한 번만 대화 기록을 저장한다
 
   const fields = form?.fields || [];
   const programName = form?.program_name || program?.name || "";
@@ -70,6 +73,24 @@ export default function ChatConversation() {
   const requiredFields = fields.filter((f) => f.required);
   const filledCount = requiredFields.filter((f) => isFilled(values[f.key])).length;
   const allFilled = requiredFields.length > 0 && filledCount === requiredFields.length;
+
+  // 필요한 항목이 모두 모인 시점에 지금까지의 상담 대화를 저장한다 (마이페이지에서 다시 볼 수 있도록).
+  // 페이지를 오갈 때 중복 저장되지 않도록 ref로 한 번만 실행한다.
+  useEffect(() => {
+    if (!allFilled || historySavedRef.current) return;
+    if (!messages.some((m) => m.role === "user")) return;
+    historySavedRef.current = true;
+    api
+      .saveChatHistory({
+        context: "정기/일시 기부",
+        programId,
+        programName,
+        messages,
+      })
+      .then((r) => rememberChatHistoryId(r.conversation.id))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allFilled]);
 
   // 체크리스트도 질문과 같은 출처(스키마)를 쓴다. 필수가 먼저, 선택이 뒤에 온다.
   const checklist = toSummaryRows(fields, values);
@@ -137,7 +158,7 @@ export default function ChatConversation() {
       {archived && (
         <Card>
           <div className="center-col" style={{ padding: "24px 0" }}>
-            <div style={{ fontSize: 38, marginBottom: 10 }}>🗄️</div>
+            <div style={{ marginBottom: 10, color: "var(--text-faint)" }}><Icon name="inventory_2" size={38} /></div>
             <p style={{ fontWeight: 700, margin: "0 0 6px" }}>모금이 종료된 사업이에요</p>
             <p className="text-muted" style={{ fontSize: 14, textAlign: "center", lineHeight: 1.7 }}>
               기관에서 이 사업을 보관해 더 이상 약정을 진행할 수 없어요.
@@ -178,7 +199,7 @@ export default function ChatConversation() {
                     className={`checklist-item${done ? " done" : ""}${current ? " current" : ""}`}
                   >
                     <span className="checklist-mark" aria-hidden="true">
-                      {done ? "✓" : ""}
+                      {done ? <Icon name="check" size={14} /> : ""}
                     </span>
                     <span className="checklist-label">
                       {row.label}

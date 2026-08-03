@@ -1,13 +1,13 @@
 // 렌더링 유틸 — 문자열 템플릿으로 HTML을 만들고 이벤트는 위임으로 붙인다.
 
 export const COLORS = {
-  navy: '#1E3A5F',
-  navySoft: '#5D7EA6',
-  coral: '#F08A5D',
-  teal: '#2BA89E',
-  line: '#DDE3EB',
-  lineSoft: '#EEF1F5',
-  ink3: '#8A97AB',
+  navy: '#3A3229',
+  navySoft: '#6B5F52',
+  coral: '#E07856',
+  teal: '#8FA68E',
+  line: '#E8DCCB',
+  lineSoft: '#F1E8DA',
+  ink3: '#9C8F7E',
 };
 
 export const esc = (s) =>
@@ -29,7 +29,7 @@ export function barChart(items, { height = 130, highlightLast = false, valueKey 
   const bars = items.map((d, i) => {
     const hPct = ((d[valueKey] || 0) / max) * 100;
     const isLast = i === items.length - 1;
-    const fill = highlightLast && isLast ? COLORS.coral : (isLast ? COLORS.navy : '#C9D4E1');
+    const fill = highlightLast && isLast ? COLORS.coral : (isLast ? COLORS.navy : '#DCCFB8');
     return `
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0">
         <div style="flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center">
@@ -47,7 +47,7 @@ export function donutChart(items, { size = 140, thickness = 26 } = {}) {
   const total = items.reduce((a, b) => a + (b.count || 0), 0);
   if (!total) return '<div class="empty">데이터가 없습니다</div>';
 
-  const palette = [COLORS.navy, COLORS.teal, '#C9D4E1', COLORS.coral, COLORS.navySoft];
+  const palette = [COLORS.navy, COLORS.teal, '#DCCFB8', COLORS.coral, COLORS.navySoft];
   const r = (size - thickness) / 2;
   const c = 2 * Math.PI * r;
   let offset = 0;
@@ -69,7 +69,7 @@ export function donutChart(items, { size = 140, thickness = 26 } = {}) {
 }
 
 export function donutLegend(items) {
-  const palette = [COLORS.navy, COLORS.teal, '#C9D4E1', COLORS.coral, COLORS.navySoft];
+  const palette = [COLORS.navy, COLORS.teal, '#DCCFB8', COLORS.coral, COLORS.navySoft];
   return `<div class="legend">${items.map((d, i) => `
     <div class="item">
       <span class="dot" style="background:${palette[i % palette.length]}"></span>

@@ -4,7 +4,6 @@ import { API_BASE, api } from '../api.js';
 import { badge, esc, num, toast, won } from '../ui.js';
 
 export const TITLE = '약정 상세';
-export const SCREEN = 'W4';
 
 const TAG_TONE = {
   발송: 'muted', 열람: 'teal', 완료: 'success', 거절: 'error',

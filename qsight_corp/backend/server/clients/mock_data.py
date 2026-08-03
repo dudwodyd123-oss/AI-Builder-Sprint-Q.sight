@@ -81,7 +81,6 @@ TEMPLATES = [
         "fields": [
             {"key": "donor_name", "label": "기부자 성명", "type": "text", "assignee": "기부자"},
             {"key": "contact", "label": "연락처", "type": "text", "assignee": "기부자"},
-            {"key": "program_name", "label": "대상 사업", "type": "select", "assignee": "담당자"},
             {"key": "amount", "label": "회차 금액", "type": "number", "assignee": "기부자"},
             {"key": "frequency", "label": "납부 주기", "type": "select", "assignee": "기부자"},
             {"key": "term_months", "label": "약정 기간", "type": "number", "assignee": "기부자"},
@@ -99,7 +98,6 @@ TEMPLATES = [
         "fields": [
             {"key": "donor_name", "label": "기부자 성명", "type": "text", "assignee": "기부자"},
             {"key": "amount", "label": "기부 금액", "type": "number", "assignee": "기부자"},
-            {"key": "program_name", "label": "대상 사업", "type": "select", "assignee": "담당자"},
             {"key": "sign_donor", "label": "서명란 · 기부자", "type": "sign", "assignee": "기부자"},
         ],
     },
@@ -109,7 +107,6 @@ TEMPLATES = [
         "updated_at": "2026-03-27",
         "fields": [
             {"key": "donor_name", "label": "참여자 성명", "type": "text", "assignee": "기부자"},
-            {"key": "program_name", "label": "대상 사업", "type": "select", "assignee": "담당자"},
             {"key": "term_months", "label": "참여 기간", "type": "number", "assignee": "기부자"},
             {"key": "sign_donor", "label": "서명란 · 참여자", "type": "sign", "assignee": "기부자"},
         ],
@@ -133,7 +130,6 @@ TEMPLATES = [
              "assignee": "기부자", "required": True},
             {"key": "donor_address", "label": "주소", "type": "text",
              "assignee": "기부자", "required": False},
-            {"key": "program_name", "label": "대상 사업", "type": "select", "assignee": "담당자"},
             # 보기 문구는 개인용 legacy-spec.json의 bequest_types 라벨과 정확히 같아야 한다.
             # 개인용이 라벨로 재산 특정 방식을 찾아 대본의 유언 취지 문장을 만든다.
             {"key": "bequest_type", "label": "재산을 특정하는 방식", "type": "select",

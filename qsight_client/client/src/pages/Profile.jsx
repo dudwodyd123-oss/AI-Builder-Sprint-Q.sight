@@ -66,22 +66,24 @@ export default function Profile() {
 
         {editing ? (
           <form onSubmit={save}>
-            <div className="field">
-              <label>이름</label>
-              <input value={form.name} onChange={update("name")} placeholder="예: 김민준" />
-            </div>
-            <div className="field">
-              <label>이메일</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={update("email")}
-                placeholder="서명 요청 메일을 받을 주소"
-              />
-            </div>
-            <div className="field">
-              <label>전화번호</label>
-              <input value={form.phone} onChange={update("phone")} placeholder="010-0000-0000" />
+            <div className="field-grid">
+              <div className="field">
+                <label>이름</label>
+                <input value={form.name} onChange={update("name")} placeholder="예: 김민준" />
+              </div>
+              <div className="field">
+                <label>이메일</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={update("email")}
+                  placeholder="서명 요청 메일을 받을 주소"
+                />
+              </div>
+              <div className="field">
+                <label>전화번호</label>
+                <input value={form.phone} onChange={update("phone")} placeholder="010-0000-0000" />
+              </div>
             </div>
             <div className="gap-12">
               {!first && (

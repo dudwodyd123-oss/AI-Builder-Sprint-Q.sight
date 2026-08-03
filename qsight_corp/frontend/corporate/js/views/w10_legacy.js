@@ -8,7 +8,6 @@ import { api } from '../api.js';
 import { badge, esc, modal, num, toast, won } from '../ui.js';
 
 export const TITLE = '유산기부 관리';
-export const SCREEN = 'W10';
 
 const TONE = {
   '수령 완료': 'success', '등록 완료': 'teal', '서명 대기': 'warning',

@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../../components/Layout.jsx";
 import Card from "../../components/Card.jsx";
+import Icon from "../../components/Icon.jsx";
 import LegacySteps from "./LegacySteps.jsx";
 import { useLegacySpec } from "./useLegacySpec.js";
 import { api } from "../../api.js";
 import { usePledgeFlow } from "../../context/PledgeContext.jsx";
+import { rememberChatHistoryId } from "../../chatHistoryLocal.js";
 import { isFilled, buildAssistantMessage, toSummaryRows, withTopicParticle } from "../../format.js";
 import { profileValues } from "../../profile.js";
 
@@ -32,6 +34,7 @@ export default function LegacyChat() {
   const [archived, setArchived] = useState(false);
   const [fields, setFields] = useState([]);
   const scrollRef = useRef(null);
+  const historySavedRef = useRef(false); // 항목이 다 채워졌을 때 한 번만 대화 기록을 저장한다
 
   const values = legacy.values || {};
   const messages = legacy.messages || [];
@@ -97,6 +100,24 @@ export default function LegacyChat() {
   const requiredFields = fields.filter((f) => f.required);
   const filledCount = requiredFields.filter((f) => isFilled(values[f.key])).length;
   const allFilled = requiredFields.length > 0 && filledCount === requiredFields.length;
+
+  // 필요한 내용이 모두 모인 시점에 지금까지의 상담 대화를 저장한다 (마이페이지에서 다시 볼 수 있도록).
+  useEffect(() => {
+    if (!allFilled || historySavedRef.current) return;
+    if (!messages.some((m) => m.role === "user")) return;
+    historySavedRef.current = true;
+    api
+      .saveChatHistory({
+        context: "유산기부",
+        programId,
+        programName,
+        messages,
+      })
+      .then((r) => rememberChatHistoryId(r.conversation.id))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allFilled]);
+
   const checklist = toSummaryRows(fields, values);
   const currentKey = checklist.find((r) => r.required && r.text === null)?.key;
   const progress = requiredFields.length > 0 ? (filledCount / requiredFields.length) * 100 : 0;
@@ -166,7 +187,7 @@ export default function LegacyChat() {
       {archived ? (
         <Card>
           <div className="center-col" style={{ padding: "24px 0" }}>
-            <div style={{ fontSize: 38, marginBottom: 10 }}>🗄️</div>
+            <div style={{ marginBottom: 10, color: "var(--text-faint)" }}><Icon name="inventory_2" size={38} /></div>
             <p style={{ fontWeight: 700, margin: "0 0 6px" }}>모금이 종료된 사업이에요</p>
             <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={() => navigate("/donate/legacy/programs")}>
               다른 사업 보기
@@ -200,7 +221,7 @@ export default function LegacyChat() {
                     key={row.key}
                     className={`checklist-item${done ? " done" : ""}${current ? " current" : ""}`}
                   >
-                    <span className="checklist-mark" aria-hidden="true">{done ? "✓" : ""}</span>
+                    <span className="checklist-mark" aria-hidden="true">{done ? <Icon name="check" size={14} /> : ""}</span>
                     <span className="checklist-label">
                       {row.label}
                       {originOf.get(row.key) === "corp" && (

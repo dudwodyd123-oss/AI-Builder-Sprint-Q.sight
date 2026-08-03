@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../../components/Layout.jsx";
 import Card from "../../components/Card.jsx";
+import Icon from "../../components/Icon.jsx";
 import LegacySteps from "./LegacySteps.jsx";
 import SpeakButton from "../../components/SpeakButton.jsx";
 import { useLegacySpec } from "./useLegacySpec.js";
@@ -210,7 +211,7 @@ export default function LegacyRecord() {
       {phase === "idle" ? (
         <Card>
           <div className="center-col" style={{ padding: "10px 0 4px" }}>
-            <div style={{ fontSize: 42, marginBottom: 12 }}>🎙️</div>
+            <div style={{ marginBottom: 12, color: "var(--accent)" }}><Icon name="mic" size={42} /></div>
             <p className="text-muted" style={{ fontSize: 14, textAlign: "center", lineHeight: 1.8 }}>
               준비되셨으면 아래 버튼을 눌러주세요.
               <br />

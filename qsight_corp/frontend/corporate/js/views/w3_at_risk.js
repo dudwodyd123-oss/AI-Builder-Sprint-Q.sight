@@ -4,7 +4,6 @@ import { api } from '../api.js';
 import { esc, modal, toast } from '../ui.js';
 
 export const TITLE = '관리가 필요한 기부자';
-export const SCREEN = 'W3';
 
 const RULE_LABELS = {
   consecutive_missed: { title: '연속 미이행', unit: '회', field: 'threshold', hint: '몇 회 연속 밀리면 알릴지' },

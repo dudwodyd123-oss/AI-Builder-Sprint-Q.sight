@@ -7,7 +7,6 @@ import { api } from '../api.js';
 import { badge, esc, modal, num, toast, won } from '../ui.js';
 
 export const TITLE = '후원 리포트';
-export const SCREEN = 'W9';
 
 export async function render(root, ctx) {
   const year = Number(ctx.search.get('year')) || undefined;

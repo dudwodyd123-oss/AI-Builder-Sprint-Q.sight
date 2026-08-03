@@ -6,7 +6,6 @@ import { api } from '../api.js';
 import { esc, toast } from '../ui.js';
 
 export const TITLE = '모금 사업 추가';
-export const SCREEN = 'W7';
 
 const METHODS = ['정기', '일시', '봉사', '유산'];
 

@@ -7,7 +7,6 @@ import { api } from '../api.js';
 import { badge, esc, num, pct, progressBar, won } from '../ui.js';
 
 export const TITLE = '모금 사업';
-export const SCREEN = 'W7';
 
 export async function render(root, ctx) {
   const { rows } = await api.get('/api/programs?with_progress=true');

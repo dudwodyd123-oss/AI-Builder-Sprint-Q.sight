@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../../components/Layout.jsx";
 import Card from "../../components/Card.jsx";
+import Icon from "../../components/Icon.jsx";
 import LegacySteps from "./LegacySteps.jsx";
 import SpeakButton from "../../components/SpeakButton.jsx";
 import { useLegacySpec } from "./useLegacySpec.js";
@@ -74,7 +75,7 @@ export default function LegacyDone() {
 
       <Card>
         <div className="center-col" style={{ padding: "16px 0 6px" }}>
-          <div style={{ fontSize: 44, marginBottom: 10 }}>🕊️</div>
+          <div style={{ marginBottom: 10, color: "var(--accent)" }}><Icon name="volunteer_activism" size={44} /></div>
           <p style={{ fontWeight: 700, fontSize: 18, margin: 0 }}>
             {signed ? "서명이 완료되었습니다" : "녹음이 저장되었습니다"}
           </p>
@@ -233,7 +234,7 @@ export default function LegacyDone() {
               className="next-step"
               onClick={() => navigate(`/agreements/${pledge.agreementId}`)}
             >
-              <span className="next-step-icon">✍️</span>
+              <span className="next-step-icon"><Icon name="draw" /></span>
               <span>
                 <strong>서명 상태 보기</strong>
                 <em>메일에서 서명을 마쳤는지 확인해요</em>
@@ -241,21 +242,21 @@ export default function LegacyDone() {
             </button>
           )}
           <button className="next-step" onClick={() => navigate("/mypage")}>
-            <span className="next-step-icon">👤</span>
+            <span className="next-step-icon"><Icon name="person" /></span>
             <span>
               <strong>마이페이지</strong>
               <em>이 유산기부 등록을 나중에 다시 열어볼 수 있어요</em>
             </span>
           </button>
           <button className="next-step" onClick={() => navigate("/documents")}>
-            <span className="next-step-icon">📜</span>
+            <span className="next-step-icon"><Icon name="history_edu" /></span>
             <span>
               <strong>나의 증서함</strong>
               <em>서명한 문서를 모아 봐요</em>
             </span>
           </button>
           <button className="next-step" onClick={() => navigate("/home")}>
-            <span className="next-step-icon">🏠</span>
+            <span className="next-step-icon"><Icon name="home" /></span>
             <span>
               <strong>홈으로</strong>
               <em>처음 화면으로 돌아가요</em>

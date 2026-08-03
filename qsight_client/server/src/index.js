@@ -5,12 +5,17 @@ import morgan from "morgan";
 
 import { CORP_BASE_URL } from "./lib/corp.js";
 import { isConfigured as modusignConfigured } from "./lib/modusign.js";
+import { isConfigured as heritageConfigured } from "./lib/heritage.js";
+import { isConfigured as hometownConfigured } from "./lib/hometownRewards.js";
 import { loadLegacySpec } from "./lib/legacySpec.js";
 import chatRouter from "./routes/chat.js";
 import programsRouter from "./routes/programs.js";
 import agreementsRouter from "./routes/agreements.js";
 import documentsRouter from "./routes/documents.js";
 import legacyRouter from "./routes/legacy.js";
+import heritageRouter from "./routes/heritage.js";
+import hometownRouter from "./routes/hometown.js";
+import chatHistoryRouter from "./routes/chatHistory.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -41,6 +46,10 @@ app.get("/api/health", (_req, res) => {
     // 키가 없어도 서버는 뜨지만 해당 기능만 꺼진다. 어디가 꺼졌는지 한눈에 보이게 한다.
     upstage: process.env.UPSTAGE_API_KEY ? "on" : "off",
     modusign: modusignConfigured() ? "on" : "off",
+    // 문화유산/고향사랑기부는 키가 없어도 정적·샘플 목록으로 항상 응답한다 (아래 라우터 참고).
+    // 여기서는 "실시간 연동이 켜져 있는지"만 알려준다.
+    heritage: heritageConfigured() ? "live" : "static",
+    hometown: hometownConfigured() ? "live" : "sample",
     time: new Date().toISOString(),
   });
 });
@@ -50,6 +59,9 @@ app.use("/api/programs", programsRouter);
 app.use("/api/agreements", agreementsRouter);
 app.use("/api/documents", documentsRouter);
 app.use("/api/legacy", legacyRouter);
+app.use("/api/heritage", heritageRouter);
+app.use("/api/hometown", hometownRouter);
+app.use("/api/chat-history", chatHistoryRouter);
 
 // 404
 app.use("/api", (_req, res) => {
@@ -76,5 +88,13 @@ app.listen(PORT, () => {
   }
   if (!modusignConfigured()) {
     console.log("모두싸인 개인 계정 미연결 — 증서함의 서명 문서 목록만 비활성화됩니다.");
+  }
+  if (!heritageConfigured()) {
+    console.warn("");
+    console.warn("ℹ️  HERITAGE_SERVICE_KEY / HERITAGE_API_URL이 없어 문화유산 목록이 정적 데이터로 표시됩니다.");
+    console.warn("    data.go.kr에서 '국가유산청' 문화재 공간정보 API를 신청한 뒤 .env에 넣으면 실시간 연동됩니다.");
+  }
+  if (!hometownConfigured()) {
+    console.log("고향사랑기부 답례품: 사용자 지정 소스 미설정 — data/hometown-rewards.sample.json 샘플 데이터로 표시됩니다.");
   }
 });

@@ -31,12 +31,12 @@
 ### 1) 의존성 설치
 
 ```bash
-pip install -r qsight_corp/backend/requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ### 2) 환경변수
 
-`qsight_corp/backend/.env.example`을 `qsight_corp/backend/.env`로 복사합니다. **키가 비어 있어도 그대로 실행됩니다.**
+`backend/.env.example`을 `backend/.env`로 복사합니다. **키가 비어 있어도 그대로 실행됩니다.**
 
 ```env
 MODUSIGN_EMAIL=            # 비우면 데모 데이터
@@ -47,7 +47,7 @@ UPSTAGE_API_KEY=           # 비우면 문서 파싱은 규칙 기반 폴백
 ### 3) 서버 실행
 
 ```bash
-python -m uvicorn server.main:app --port 8080 --app-dir qsight_corp/backend --reload
+python -m uvicorn server.main:app --port 8080 --app-dir backend --reload
 ```
 
 접속:
@@ -129,7 +129,6 @@ Get-NetTCPConnection -LocalPort 8080 -State Listen | ForEach-Object { Stop-Proce
 ## 구조
 
 ```text
-qsight_corp/                           # 기관용 (이 문서)
 ├── backend/                           # 이 문서가 설명하는 부분
 │   ├── server/
 │   │   ├── main.py                    # FastAPI 진입점 + 정적 웹 마운트
@@ -291,7 +290,7 @@ qsight_corp/                           # 기관용 (이 문서)
 ### 진단 스크립트
 
 ```bash
-python qsight_corp/backend/tools/check_modusign.py
+python backend/tools/check_modusign.py
 ```
 
 인증 · 엔드포인트 경로 · 응답 구조 · metadatas 매핑을 한 번에 확인합니다.

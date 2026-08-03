@@ -8,7 +8,6 @@ import { API_BASE, api } from '../api.js';
 import { badge, esc, toast } from '../ui.js';
 
 export const TITLE = '계약서 서식 편집';
-export const SCREEN = 'W6';
 
 const TYPE_LABEL = {
   text: '텍스트', number: '숫자', select: '선택', check: '체크',
@@ -116,9 +115,9 @@ export async function render(root, ctx) {
         ${f.type === 'sign' ? '' : `
           <input class="f-value" value="${esc(f.value ?? '')}"
                  placeholder="기관이 미리 채울 값 (비우면 기부자가 입력)"
-                 style="flex:1 1 100%;border:1px solid ${prefilled ? '#9CC7AC' : 'var(--line)'};
+                 style="flex:1 1 100%;border:1px solid ${prefilled ? '#8FA68E' : 'var(--line)'};
                         border-radius:6px;padding:6px 9px;font-size:12.5px;
-                        background:${prefilled ? '#F6FBF8' : '#fff'}">`}
+                        background:${prefilled ? '#F0F5EC' : '#fff'}">`}
       </div>`;
     }).join('');
 
@@ -243,7 +242,7 @@ function showSaved(root, template, fields, ctx) {
   const donor = fields.filter((f) => f.assignee === '기부자' && f.type !== 'sign').length;
   root.querySelector('#preview-hint').textContent = '저장 완료';
   root.querySelector('#preview-body').innerHTML = `
-    <div class="card" style="border-color:#CFE0D6;background:#F6FBF8;box-shadow:none">
+    <div class="card" style="border-color:#D5E0CD;background:#F0F5EC;box-shadow:none">
       <div class="card-b">
         <div class="flex" style="margin-bottom:10px">
           <span class="strong" style="font-size:16px">저장되었습니다</span>

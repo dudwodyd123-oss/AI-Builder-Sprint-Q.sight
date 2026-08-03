@@ -4,7 +4,6 @@ import { api } from '../api.js';
 import { badge, esc, toast, won } from '../ui.js';
 
 export const TITLE = '기부 현황';
-export const SCREEN = 'W2';
 
 const FILTERS = [
   { key: 'all', label: '전체' },

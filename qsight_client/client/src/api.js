@@ -91,4 +91,49 @@ export const api = {
   },
 
   legacyRecordingUrl: (id) => `/api/legacy/pledges/${id}/recording`,
+
+  // ---------- 문화유산 / 고향사랑기부 (실시간 연동, 설정 없으면 정적/샘플로 폴백) ----------
+  listHeritages: () => request("/heritage"),
+  listHometownRewards: () => request("/hometown"),
+
+  // 문화유산 후원 신청 접수 (전자서명 없는 단순 신청 — server/src/routes/heritage.js 참고)
+  createHeritagePledge: (payload) =>
+    request("/heritage/pledges", { method: "POST", body: JSON.stringify(payload) }),
+  getHeritagePledge: (id) => request(`/heritage/pledges/${id}`),
+  lookupHeritagePledges: (ids) =>
+    request("/heritage/pledges/lookup", { method: "POST", body: JSON.stringify({ ids }) }),
+
+  // 고향사랑기부 신청 접수 (전자서명 없는 단순 신청 — server/src/routes/hometown.js 참고)
+  createHometownPledge: (payload) =>
+    request("/hometown/pledges", { method: "POST", body: JSON.stringify(payload) }),
+  getHometownPledge: (id) => request(`/hometown/pledges/${id}`),
+  lookupHometownPledges: (ids) =>
+    request("/hometown/pledges/lookup", { method: "POST", body: JSON.stringify({ ids }) }),
+
+  // 문화유산후원 / 고향사랑기부 신청서 작성용 챗봇 (기관별 계약서 스키마가 없는 단순 버전
+  // — server/src/lib/simpleChat.js 참고)
+  heritageChat: ({ messages, values }) =>
+    request("/heritage/chat", { method: "POST", body: JSON.stringify({ messages, values }) }),
+  hometownChat: ({ messages, values }) =>
+    request("/hometown/chat", { method: "POST", body: JSON.stringify({ messages, values }) }),
+
+  // 챗봇 대화 내역 저장 — 신청 접수 시점에 함께 남긴다. 다시 불러와 보여줄 필요는 없어서
+  // 서버는 콘솔 로그로만 남기고 저장 성공 여부만 돌려준다(routes/heritage.js, hometown.js 참고).
+  saveHeritageChatLog: (id, messages) =>
+    request(`/heritage/pledges/${id}/chat-log`, { method: "POST", body: JSON.stringify({ messages }) }),
+  saveHometownChatLog: (id, messages) =>
+    request(`/hometown/pledges/${id}/chat-log`, { method: "POST", body: JSON.stringify({ messages }) }),
+
+  // ---------- AI 상담 대화 기록 (저장 + 마이페이지에서 다시 보기) ----------
+  // 정기/일시 기부·유산기부·문화유산 후원·고향사랑기부 — 모든 챗봇 화면이 공통으로 쓴다.
+  // 위 saveHeritageChatLog/saveHometownChatLog와 달리 실제로 파일에 저장되어 나중에
+  // 다시 조회할 수 있다 (server/src/routes/chatHistory.js 참고).
+  saveChatHistory: ({ context, programId, programName, relatedId, messages }) =>
+    request("/chat-history", {
+      method: "POST",
+      body: JSON.stringify({ context, programId, programName, relatedId, messages }),
+    }),
+  lookupChatHistory: (ids) =>
+    request("/chat-history/lookup", { method: "POST", body: JSON.stringify({ ids }) }),
+  getChatHistory: (id) => request(`/chat-history/${id}`),
 };

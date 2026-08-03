@@ -4,7 +4,6 @@ import { api } from '../api.js';
 import { badge, bindDropzone, esc, toast } from '../ui.js';
 
 export const TITLE = '서식 업로드 · 항목 추출';
-export const SCREEN = 'W5';
 
 const TYPE_LABEL = {
   text: '텍스트', number: '숫자', select: '선택', check: '체크',

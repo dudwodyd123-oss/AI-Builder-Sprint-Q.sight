@@ -69,7 +69,6 @@ function shell() {
       <div class="main">
         <header class="topbar">
           <h1 id="page-title">—</h1>
-          <span class="screen-tag" id="screen-tag"></span>
           <span class="spacer"></span>
           <div class="flex" id="page-actions"></div>
         </header>
@@ -119,13 +118,11 @@ async function render() {
   const { route, params, search, path } = parseHash();
   const content = freshContent();
   const titleEl = document.getElementById('page-title');
-  const tagEl = document.getElementById('screen-tag');
   const actionsEl = document.getElementById('page-actions');
 
   if (!route) {
     setActiveNav(path === '/settings' ? 'settings' : '');
     titleEl.textContent = path === '/settings' ? '설정' : '페이지를 찾을 수 없습니다';
-    tagEl.textContent = '';
     actionsEl.innerHTML = '';
     content.innerHTML = path === '/settings' ? settingsView() : errorBox(`알 수 없는 경로: ${path}`);
     if (path === '/settings') mountSettings();
@@ -135,7 +132,6 @@ async function render() {
   const token = ++renderToken;
   setActiveNav(route.nav);
   titleEl.textContent = route.view.TITLE;
-  tagEl.textContent = route.view.SCREEN;
   actionsEl.innerHTML = '';
   content.innerHTML = loading();
 

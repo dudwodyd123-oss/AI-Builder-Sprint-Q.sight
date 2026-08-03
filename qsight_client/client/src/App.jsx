@@ -22,6 +22,7 @@ import AgreementConfirm from "./pages/AgreementConfirm.jsx";
 import SignerInfo from "./pages/SignerInfo.jsx";
 import AgreementWait from "./pages/AgreementWait.jsx";
 import Documents from "./pages/Documents.jsx";
+import ChatHistory from "./pages/ChatHistory.jsx";
 import DocumentView from "./pages/DocumentView.jsx";
 
 export default function App() {
@@ -51,6 +52,7 @@ export default function App() {
       <Route path="/programs/:programId/signer" element={<SignerInfo />} />
       <Route path="/agreements/:agreementId" element={<AgreementWait />} />
       <Route path="/documents" element={<Documents />} />
+      <Route path="/chat-history" element={<ChatHistory />} />
       <Route path="/documents/:documentId" element={<DocumentView />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

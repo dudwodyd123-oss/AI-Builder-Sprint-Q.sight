@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import Card from "../components/Card.jsx";
+import Icon from "../components/Icon.jsx";
 import { api } from "../api.js";
 import { usePledgeFlow } from "../context/PledgeContext.jsx";
 
@@ -58,11 +59,11 @@ export default function ChatStart() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 34,
+              color: "var(--accent-dark)",
               marginBottom: 18,
             }}
           >
-            🤖
+            <Icon name="smart_toy" size={34} />
           </div>
           <h2 style={{ margin: "0 0 8px", fontSize: 19 }}>안녕하세요, AI 상담사 큐빗이에요</h2>
 

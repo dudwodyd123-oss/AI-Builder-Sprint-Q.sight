@@ -4,7 +4,6 @@ import { api } from '../api.js';
 import { barChart, donutChart, donutLegend, esc, num, pct, progressBar, toast, won } from '../ui.js';
 
 export const TITLE = '대시보드';
-export const SCREEN = 'W1';
 
 export async function render(root, ctx) {
   const data = await api.get('/api/dashboard');

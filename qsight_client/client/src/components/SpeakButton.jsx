@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import Icon from "./Icon.jsx";
 
 /**
  * 고지문을 소리 내어 읽어주는 버튼.
@@ -132,7 +133,7 @@ export default function SpeakButton({ text, label = "읽어주기", disabled = f
         aria-pressed={speaking}
         title={disabled ? "녹음 중에는 사용할 수 없어요" : speaking ? "읽기 중지" : "소리로 들려드려요"}
       >
-        <span aria-hidden="true">{speaking ? "■" : "🔊"}</span>
+        <span aria-hidden="true">{speaking ? <Icon name="stop_circle" size={16} /> : <Icon name="volume_up" size={16} />}</span>
         <span>{speaking ? "읽기 중지" : label}</span>
       </button>
       {notice && <p className="hint speak-notice">{notice}</p>}

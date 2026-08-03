@@ -85,6 +85,13 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // 일시 기부는 약정 기간 개념이 없다. frequency가 "일시"로 확정되면
+    // term_months가 채워지길 기다리지 않고 0으로 확정한다.
+    // (선택지가 정해진 값 하나로 다른 필드의 값을 결정하는 판단이라 LLM에게 맡기지 않고 코드가 한다)
+    if (values.frequency === "일시" && fields.some((f) => f.key === "term_months")) {
+      values.term_months = 0;
+    }
+
     // 이번 턴에 새로 채워졌거나 값이 바뀐 항목
     const captured = Object.keys(values).filter((k) => values[k] !== before[k]);
     // LLM이 값을 제안했지만 형식·선택지에 맞지 않아 버려진 항목

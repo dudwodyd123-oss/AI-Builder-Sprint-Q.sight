@@ -1,0 +1,517 @@
+{
+  "_readme": "이 파일은 고향사랑기부 답례품 목록 데이터입니다. 아래 항목은 2026-08-02에 고향사랑e음 공식 포털(ilovegohyang.go.kr)의 부산광역시(locgov=26000) 답례품 몰을 직접 확인해서 채운 실제 스냅샷입니다. 고향사랑e음/busanlove.kr 모두 외부에서 바로 호출 가능한 공개 API가 없어서(내부 API가 있긴 하지만 브라우저 세션 밖 요청은 401로 막힘), 담당자가 이 파일을 주기적으로 열어 최신 답례품으로 갱신하는 방식으로 운영합니다. 서버 재배포 없이 이 파일만 저장하면 다음 요청부터 반영됩니다 (최대 10분 캐시). 배열 안 객체의 키 이름은 server/src/lib/hometownRewards.js의 normalizeItem()이 인식하는 이름입니다. minDonation 단위는 고향사랑e음의 포인트(P) 표시를 그대로 원(KRW)으로 옮긴 값입니다.",
+  "items": [
+    {
+      "id": "busan-tour-01",
+      "name": "2026 부산국제록페스티벌 3일권 할인권",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2015/11/22/19/04/crowd-1056764_1280.jpg"
+    },
+    {
+      "id": "busan-tour-02",
+      "name": "[부산] 부산패스 부산할인 홀릭잼 연간 사용권",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2017/11/21/14/16/seoul-2968290_1280.jpg"
+    },
+    {
+      "id": "busan-tour-03",
+      "name": "[부산 송정] 서프홀릭 서핑 렌탈 체험권",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2015/09/06/01/00/surfing-926822_1280.jpg"
+    },
+    {
+      "id": "busan-tour-04",
+      "name": "[부산 시청] 파라다이스 호텔 부산 객실 상품(오션테라스 1박 & 조식 2인)",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 600000,
+      "image": "https://cdn.pixabay.com/photo/2016/12/11/18/10/apartment-1899964_1280.jpg"
+    },
+    {
+      "id": "busan-tour-05",
+      "name": "[부산 시청] 웨스틴조선 부산 까밀리아 뷔페 레스토랑 15만원 상품",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 150000,
+      "image": "https://cdn.pixabay.com/photo/2017/03/23/15/49/buffet-2168678_1280.jpg"
+    },
+    {
+      "id": "busan-tour-06",
+      "name": "[부산 시청] 웨스틴조선 부산 이그제큐티브 비치뷰 객실 1박 상품",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 600000,
+      "image": "https://cdn.pixabay.com/photo/2016/07/08/23/41/window-view-1505463_1280.jpg"
+    },
+    {
+      "id": "busan-tour-07",
+      "name": "[부산 시청] 시그니엘 프리미어 패밀리트윈 오션뷰 숙박권(조식2인 포함)",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 820380,
+      "image": "https://cdn.pixabay.com/photo/2019/12/26/16/51/luxury-suite-4720815_1280.jpg"
+    },
+    {
+      "id": "busan-tour-08",
+      "name": "[부산 시청] 허심청 온천 이용권",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 15000,
+      "image": "https://cdn.pixabay.com/photo/2013/10/26/04/34/hot-source-200976_1280.jpg"
+    },
+    {
+      "id": "busan-tour-09",
+      "name": "[부산 시청] 금련산청소년수련원 숙박할인권",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 60000,
+      "image": "https://cdn.pixabay.com/photo/2013/09/23/04/36/hostel-185156_1280.jpg"
+    },
+    {
+      "id": "busan-tour-10",
+      "name": "[부산 시청] 해운대블루라인 스카이캡슐 이용권",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 45000,
+      "image": "https://cdn.pixabay.com/photo/2018/08/26/19/42/cable-car-3633152_1280.jpg"
+    },
+    {
+      "id": "busan-tour-11",
+      "name": "[부산 시청] 해운대블루라인 해변열차 이용권",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 15000,
+      "image": "https://cdn.pixabay.com/photo/2017/12/30/11/53/transport-system-3049882_1280.jpg"
+    },
+    {
+      "id": "busan-tour-12",
+      "name": "[부산 시청] 시티투어 이용권",
+      "region": "부산광역시",
+      "category": "관광서비스",
+      "minDonation": 8000,
+      "image": "https://cdn.pixabay.com/photo/2020/11/30/00/53/bus-5789465_1280.jpg"
+    },
+    {
+      "id": "busan-farm-01",
+      "name": "[부산 시청] 국제식품 한돈1등급 1.7kg (삼겹살1kg+목살0.7kg)",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2022/11/12/11/20/plane-pork-belly-7586802_1280.jpg"
+    },
+    {
+      "id": "busan-farm-02",
+      "name": "[부산] 가락농협 25년산 황금쌀 10KG",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2020/04/03/13/13/bag-of-rice-4998844_1280.jpg"
+    },
+    {
+      "id": "busan-farm-03",
+      "name": "[부산 시청] 국제식품 한돈 1등급 목살 1.8kg",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2022/11/12/11/20/pork-belly-7586801_1280.jpg"
+    },
+    {
+      "id": "busan-farm-04",
+      "name": "[부산 시청] 국제식품 1+한우 등심 400g(구이용)",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2019/07/25/01/23/beef-4361462_1280.jpg"
+    },
+    {
+      "id": "busan-farm-05",
+      "name": "[부산 시청] 꽃다발",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2017/08/01/23/22/flowers-2568595_1280.jpg"
+    },
+    {
+      "id": "busan-farm-06",
+      "name": "[부산 시청] ★25년 햅쌀★ 가락농협 뉴황금쌀 10KG",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 35000,
+      "image": "https://cdn.pixabay.com/photo/2020/05/26/17/06/rice-5223893_1280.jpg"
+    },
+    {
+      "id": "busan-farm-07",
+      "name": "[부산 시청] 국제식품 한돈 1등급 삼겹살 1.6kg",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2015/11/20/08/17/meat-1052571_1280.jpg"
+    },
+    {
+      "id": "busan-farm-08",
+      "name": "[부산 시청] 국제식품 한우1+등급 불고기용400g/국거리용400g",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2022/11/15/12/33/pa-bulgogi-7593889_1280.jpg"
+    },
+    {
+      "id": "busan-farm-09",
+      "name": "[부산 시청] 국제식품 한우1+등급VIP세트2호 냉장2.6kg",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 300000,
+      "image": "https://cdn.pixabay.com/photo/2016/05/28/00/06/gift-1420830_1280.jpg"
+    },
+    {
+      "id": "busan-farm-10",
+      "name": "[부산 시청] 국제식품 한우1+등급VIP세트1호 냉장2.6kg",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 300000,
+      "image": "https://cdn.pixabay.com/photo/2020/03/18/15/49/present-4944584_1280.jpg"
+    },
+    {
+      "id": "busan-farm-11",
+      "name": "[부산 시청] 국제식품1+등급 한우알찬 구이세트 냉장1.2kg",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 150000,
+      "image": "https://cdn.pixabay.com/photo/2019/05/02/09/19/fillet-of-beef-4172935_1280.jpg"
+    },
+    {
+      "id": "busan-farm-12",
+      "name": "[부산 시청] 국제식품1+등급 한우기획세트 냉장1.2kg",
+      "region": "부산광역시",
+      "category": "농축산물",
+      "minDonation": 150000,
+      "image": "https://cdn.pixabay.com/photo/2017/09/09/13/04/fillet-of-beef-2731970_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-01",
+      "name": "기장 산모미역 선물세트 국산 미역국용 1kg",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 60000,
+      "image": "https://cdn.pixabay.com/photo/2016/06/30/17/38/seaweed-1489512_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-02",
+      "name": "기장 미역&다시마 3종 중량 up! 선물세트",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2019/07/17/11/25/salad-4343738_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-03",
+      "name": "기장 산모미역 2종 선물세트 국산 명품미역",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2017/09/07/18/23/food-2726202_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-04",
+      "name": "[부산 시청] 석하 프리미엄 기장미역세트",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2017/07/13/06/10/seaweed-2499352_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-05",
+      "name": "[부산 시청] 동아푸드 고등어 필렛 10팩",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2021/12/18/16/08/fish-6879197_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-06",
+      "name": "[부산 시청] 덕화명란 백명란 선물세트 1세트",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2016/12/17/20/52/red-caviar-1914461_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-07",
+      "name": "[부산 시청] (243번) 기장산 실미역 500g",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2017/06/15/17/10/seaweed-2406020_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-08",
+      "name": "[부산 시청] 정치망 멸치",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2017/07/13/06/11/anchovy-2499354_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-09",
+      "name": "[부산 시청] 자연의덕 31번 기장미역 다시마 선물세트",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2015/06/21/15/53/sea-816740_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-10",
+      "name": "[부산 시청] 바다의정 901번 기장미역 멸치선물세트",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 85000,
+      "image": "https://cdn.pixabay.com/photo/2014/02/20/08/50/seaweed-270426_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-11",
+      "name": "[부산 시청] 자연의덕 51번 기장미역 멸치선물세트",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 62000,
+      "image": "https://cdn.pixabay.com/photo/2020/09/06/16/26/anchovy-5549405_1280.jpg"
+    },
+    {
+      "id": "busan-aquatic-12",
+      "name": "[부산 시청] 자연의덕 41번 기장미역 다시마 멸치선물세트",
+      "region": "부산광역시",
+      "category": "수산물",
+      "minDonation": 50000,
+      "image": "https://cdn.pixabay.com/photo/2020/12/09/13/59/gifts-5817555_1280.jpg"
+    },
+    {
+      "id": "busan-process-01",
+      "name": "[부산 시청] 개미집 낙곱새(밀키트4인분)",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2016/07/22/05/07/delicious-1534207_1280.jpg"
+    },
+    {
+      "id": "busan-process-02",
+      "name": "[이흐용과자점] 골든리프 12입",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2017/08/01/16/57/cookie-2566665_1280.jpg"
+    },
+    {
+      "id": "busan-process-03",
+      "name": "신앙촌 양조간장 명품 S2호 선물세트",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2017/08/22/18/59/sauce-2670078_1280.jpg"
+    },
+    {
+      "id": "busan-process-04",
+      "name": "런 요구르트 세트(120ml 20p)",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2017/06/16/07/00/yogurt-with-fruit-2408031_1280.jpg"
+    },
+    {
+      "id": "busan-process-05",
+      "name": "옵스 쿠키·구운과자 세트 S",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2020/11/03/23/55/cookies-5711139_1280.jpg"
+    },
+    {
+      "id": "busan-process-06",
+      "name": "옵스 구운과자 S",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2022/03/12/19/22/biscuit-7064697_1280.jpg"
+    },
+    {
+      "id": "busan-process-07",
+      "name": "옵스 쿠키세트 S",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2016/05/04/19/05/cookies-1372607_1280.jpg"
+    },
+    {
+      "id": "busan-process-08",
+      "name": "담아요 건조차 모음전(우엉차/연근차/비트차/도라지차/생강차/팥차)",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 11000,
+      "image": "https://cdn.pixabay.com/photo/2015/01/07/22/14/tee-592041_1280.jpg"
+    },
+    {
+      "id": "busan-process-09",
+      "name": "[부산 시청] 삼진어묵 간식선물세트(2호)",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2018/12/10/00/27/tang-fish-cakes-3866061_1280.jpg"
+    },
+    {
+      "id": "busan-process-10",
+      "name": "[부산 시청] 수제청 2구 선물세트(베리청540g+백향과청540g)",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2015/08/10/15/22/jam-882795_1280.jpg"
+    },
+    {
+      "id": "busan-process-11",
+      "name": "[부산 시청] 수제청 2구 선물세트(생강청650g+레몬청540g)",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2014/08/26/15/31/compote-428111_1280.jpg"
+    },
+    {
+      "id": "busan-process-12",
+      "name": "[부산 시청] 모모스커피 버라이어티 드립백 21매입",
+      "region": "부산광역시",
+      "category": "가공식품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2014/10/04/07/40/a-drip-bag-472658_1280.jpg"
+    },
+    {
+      "id": "busan-daily-01",
+      "name": "그라운즈앤 커피박 칫솔 커피향 치약세트(칫솔4p+치약1p+칫솔꽂이1p)",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2018/03/01/16/43/toothbrush-3191097_1280.jpg"
+    },
+    {
+      "id": "busan-daily-02",
+      "name": "[1+1] 부산 워터 펜홀더(4종) + 부산 우드 마그넷(7종)",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2019/04/29/16/36/pen-butler-4166501_1280.jpg"
+    },
+    {
+      "id": "busan-daily-03",
+      "name": "[대나무 티 텀블러] 레이저 각인 11종",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2012/02/17/14/56/wooden-14322_1280.jpg"
+    },
+    {
+      "id": "busan-daily-04",
+      "name": "[부산 시청] 부산우유 향기 핸드크림 2개 세트",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2020/07/01/12/04/hand-cream-5359397_1280.jpg"
+    },
+    {
+      "id": "busan-daily-05",
+      "name": "[부산 시청] BUSAN 바다에 퐁당퐁당, 쪼리슬리퍼+안경케이스 세트",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2021/08/24/11/55/flip-flops-6570481_1280.jpg"
+    },
+    {
+      "id": "busan-daily-06",
+      "name": "[부산 시청] BUSAN 바다에 퐁당퐁당, 비치 타올",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2020/08/03/18/30/beach-towel-5460775_1280.jpg"
+    },
+    {
+      "id": "busan-daily-07",
+      "name": "[부산 시청] 오앤유 핸드메이드 손잡이 에코백",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2021/07/14/09/46/eco-bag-6465610_1280.jpg"
+    },
+    {
+      "id": "busan-daily-08",
+      "name": "[부산 시청] [모다라] 한국/부산 손수건 선물세트",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2012/09/06/17/29/fabric-56287_1280.jpg"
+    },
+    {
+      "id": "busan-daily-09",
+      "name": "[부산 시청] [모다라] 부산 머그컵+에코백 선물세트",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2020/01/27/16/59/ceramic-mug-4797733_1280.jpg"
+    },
+    {
+      "id": "busan-daily-10",
+      "name": "[부산 시청] 오앤유 나전칠기 자개 손거울",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2021/09/16/23/50/girl-6631277_1280.jpg"
+    },
+    {
+      "id": "busan-daily-11",
+      "name": "[부산 시청] 한글과 부산 도자기주병 선물세트",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 50000,
+      "image": "https://cdn.pixabay.com/photo/2018/05/10/14/05/ceramic-3387627_1280.jpg"
+    },
+    {
+      "id": "busan-daily-12",
+      "name": "[부산 시청] 부산 기념품 부기와 동백 도자기잔 선물세트",
+      "region": "부산광역시",
+      "category": "생활용품",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2025/12/15/18/20/cup-10016743_1280.jpg"
+    },
+    {
+      "id": "busan-ticket-01",
+      "name": "옵스 상품권 1만원권",
+      "region": "부산광역시",
+      "category": "지역상품권",
+      "minDonation": 10000,
+      "image": "https://cdn.pixabay.com/photo/2014/04/30/10/35/coupon-334809_1280.jpg"
+    },
+    {
+      "id": "busan-ticket-02",
+      "name": "[부산 시청] 행복한느림보 이흥용과자점 상품권",
+      "region": "부산광역시",
+      "category": "지역상품권",
+      "minDonation": 30000,
+      "image": "https://cdn.pixabay.com/photo/2016/11/18/15/47/card-1835447_1280.jpg"
+    },
+    {
+      "id": "busan-ticket-03",
+      "name": "[부산 시청] 부산지역화폐 동백전",
+      "region": "부산광역시",
+      "category": "지역상품권",
+      "minDonation": 10000,
+      "image": "https://cdn.pixabay.com/photo/2014/02/01/18/00/money-256314_1280.jpg"
+    },
+    {
+      "id": "busan-ticket-04",
+      "name": "[부산 시청] 부산신발브랜드편집샵 파도블 이용권",
+      "region": "부산광역시",
+      "category": "지역상품권",
+      "minDonation": 10000,
+      "image": "https://cdn.pixabay.com/photo/2020/04/14/09/53/nike-5041716_1280.jpg"
+    }
+  ]
+}

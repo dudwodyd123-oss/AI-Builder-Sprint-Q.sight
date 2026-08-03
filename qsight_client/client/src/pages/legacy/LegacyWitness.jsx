@@ -65,14 +65,16 @@ export default function LegacyWitness() {
       {(error || specError) && <div className="alert alert-danger">{error || specError}</div>}
 
       <Card title="증인 정보">
-        <div className="field">
-          <label>증인 성명</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="녹음에서 말할 이름 그대로" />
-          <p className="hint">이 이름이 대본의 마지막 문장에 들어갑니다.</p>
-        </div>
-        <div className="field">
-          <label>증인 연락처 (선택)</label>
-          <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="010-0000-0000" />
+        <div className="field-grid">
+          <div className="field">
+            <label>증인 성명</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="녹음에서 말할 이름 그대로" />
+            <p className="hint">이 이름이 대본의 마지막 문장에 들어갑니다.</p>
+          </div>
+          <div className="field">
+            <label>증인 연락처 (선택)</label>
+            <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="010-0000-0000" />
+          </div>
         </div>
       </Card>
 
